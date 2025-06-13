@@ -43,6 +43,9 @@ dependencies:
   pdf: ^3.10.4
   printing: ^5.13.4
   provider: ^6.1.2  # Already added earlier, keep if using Provider
+  google_sign_in: ^6.3.0
+  image_picker: ^1.1.2
+  firebase_storage: ^12.4.7
   
 
 dev_dependencies:

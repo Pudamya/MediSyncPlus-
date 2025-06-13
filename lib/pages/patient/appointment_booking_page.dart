@@ -1095,94 +1095,1812 @@
 
 
 
+// import 'package:flutter/material.dart';
+// import 'package:intl/intl.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:medi_sync_plus_app/pages/login_page/role_login_page.dart'; // Assuming this is your login page
+
+// // --- Data Models (Adjusted) ---
+// class Specialty {
+//   final String id; // e.g., "cardiology", "dentistry"
+//   final String name; // e.g., "Cardiology", "Dentistry"
+//   Specialty({required this.id, required this.name});
+
+//   @override
+//   bool operator ==(Object other) =>
+//       identical(this, other) ||
+//       other is Specialty && runtimeType == other.runtimeType && id == other.id;
+
+//   @override
+//   int get hashCode => id.hashCode;
+
+//   @override
+//   String toString() => 'Specialty(id: $id, name: $name)';
+// }
+
+// class Doctor {
+//   final String id;
+//   final String name;
+//   final String specialtyId; // e.g., "cardiology"
+//   final String specialtyName; // e.g., "Cardiology"
+//   final List<HospitalAffiliation> hospitalAffiliations;
+//   // weeklyAvailability is removed, slots are fetched directly
+
+//   Doctor({
+//     required this.id,
+//     required this.name,
+//     required this.specialtyId,
+//     required this.specialtyName,
+//     required this.hospitalAffiliations,
+//   });
+
+//   @override
+//   bool operator ==(Object other) =>
+//       identical(this, other) ||
+//       other is Doctor && runtimeType == other.runtimeType && id == other.id;
+
+//   @override
+//   int get hashCode => id.hashCode;
+// }
+
+// class HospitalAffiliation {
+//   final String hospitalId;
+//   final String hospitalName;
+//   HospitalAffiliation({required this.hospitalId, required this.hospitalName});
+
+//   @override
+//   bool operator ==(Object other) =>
+//       identical(this, other) ||
+//       other is HospitalAffiliation &&
+//           runtimeType == other.runtimeType &&
+//           hospitalId == other.hospitalId;
+
+//   @override
+//   int get hashCode => hospitalId.hashCode;
+// }
+
+// // Represents a fetched available slot for UI display
+// class AvailableSlot {
+//   final String slotId; // Document ID of the slot in the subcollection
+//   final DateTime startTime;
+//   final DateTime endTime;
+//   final String displayTime; // e.g., "09:00 AM - 09:30 AM"
+
+//   AvailableSlot({
+//     required this.slotId,
+//     required this.startTime,
+//     required this.endTime,
+//     required this.displayTime,
+//   });
+
+//    @override
+//   bool operator ==(Object other) =>
+//       identical(this, other) ||
+//       other is AvailableSlot &&
+//           runtimeType == other.runtimeType &&
+//           slotId == other.slotId;
+
+//   @override
+//   int get hashCode => slotId.hashCode;
+// }
+// // --- End Data Models ---
+
+// class AppointmentBookingPage extends StatefulWidget {
+//   const AppointmentBookingPage({super.key});
+
+//   @override
+//   State<AppointmentBookingPage> createState() => _AppointmentBookingPageState();
+// }
+
+// class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
+//   final _formKey = GlobalKey<FormState>();
+//   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+//   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+//   final TextEditingController _searchController = TextEditingController();
+//   String _searchTerm = "";
+
+//   Specialty? _selectedSpecialty;
+//   Doctor? _selectedDoctor;
+//   HospitalAffiliation? _selectedHospitalAffiliation;
+//   DateTime? _selectedDate;
+//   AvailableSlot? _selectedSlot; // Changed from String to AvailableSlot
+
+//   final TextEditingController _patientNameController = TextEditingController();
+//   final TextEditingController _patientContactController = TextEditingController();
+
+//   List<Specialty> _allSpecialties = [];
+//   List<Doctor> _allDoctors = [];
+//   List<Doctor> _filteredDoctors = [];
+//   List<HospitalAffiliation> _hospitalAffiliations = [];
+//   List<AvailableSlot> _availableTimeSlots = []; // Changed from List<String>
+
+//   bool _isLoadingSpecialties = true;
+//   bool _isLoadingDoctors = false;
+//   bool _isLoadingTimeSlots = false;
+//   bool _isBooking = false;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _fetchInitialData();
+//     _searchController.addListener(() {
+//       if (!mounted) return;
+//       setState(() {
+//         _searchTerm = _searchController.text.trim();
+//         _filterDoctors();
+//       });
+//     });
+//   }
+
+//   @override
+//   void dispose() {
+//     _searchController.dispose();
+//     _patientNameController.dispose();
+//     _patientContactController.dispose();
+//     super.dispose();
+//   }
+
+//   Future<void> _fetchInitialData() async {
+//     User? currentUser = _auth.currentUser;
+//     if (currentUser == null) {
+//       print("User not authenticated. Redirecting to login.");
+//       if (mounted) {
+//         _showError("Please log in to continue.");
+//         Navigator.of(context).pushAndRemoveUntil(
+//           MaterialPageRoute(builder: (context) => RoleLoginPage()), // Ensure RoleLoginPage is imported/defined
+//           (Route<dynamic> route) => false,
+//         );
+//       }
+//       return;
+//     }
+
+//     // Prefetch patient name if available from user profile (optional)
+//     // if (currentUser.displayName != null && currentUser.displayName!.isNotEmpty) {
+//     //   _patientNameController.text = currentUser.displayName!;
+//     // }
+//     // Fetch from your 'users' or 'patients' collection if you store more details
+//     DocumentSnapshot userProfile = await _firestore.collection('users').doc(currentUser.uid).get();
+//     if(userProfile.exists && userProfile.data() != null) {
+//         var userData = userProfile.data() as Map<String, dynamic>;
+//         if(userData.containsKey('fullName') && userData['fullName'] != null) {
+//             _patientNameController.text = userData['fullName'];
+//         }
+//         if(userData.containsKey('phoneNumber') && userData['phoneNumber'] != null) {
+//             _patientContactController.text = userData['phoneNumber'];
+//         }
+//     }
+
+
+//     await _fetchSpecialties();
+//     await _fetchAllDoctors();
+//   }
+
+//   Future<void> _fetchSpecialties() async {
+//     if (!mounted) return;
+//     setState(() => _isLoadingSpecialties = true);
+//     try {
+//       print("Fetching specialties from Firestore 'specialties' collection...");
+//       QuerySnapshot snapshot =
+//           await _firestore.collection('specialties').orderBy('name').get(); // Assuming you have a 'name' field for ordering
+//       if (!mounted) return;
+
+//       if (snapshot.docs.isEmpty) {
+//         print("No specialties found in Firestore.");
+//         if (mounted) _showError("No specialties available in the database.");
+//         setState(() {
+//           _allSpecialties = [];
+//         });
+//         return;
+//       }
+
+//       _allSpecialties = snapshot.docs.map((doc) {
+//         var data = doc.data() as Map<String, dynamic>;
+//         // The document ID IS the specialty ID (e.g., "cardiology")
+//         // The document has a field 'name' (e.g., "Cardiology")
+//         return Specialty(id: doc.id, name: data['name'] as String? ?? "Unnamed Specialty");
+//       }).toList();
+
+//       print("Fetched specialties: ${_allSpecialties.map((s) => '${s.id}: ${s.name}').toList()}");
+//     } catch (e, stackTrace) {
+//       print("Error fetching specialties: $e\n$stackTrace");
+//       if (mounted) _showError("Could not load specialties. Please try again.");
+//     } finally {
+//       if (mounted) {
+//         setState(() => _isLoadingSpecialties = false);
+//         _filterDoctors(); // Initial filter
+//       }
+//     }
+//   }
+
+//   Future<void> _fetchAllDoctors() async {
+//     if (!mounted) return;
+//     setState(() {
+//       _isLoadingDoctors = true;
+//       _allDoctors = [];
+//       _filteredDoctors = [];
+//     });
+//     try {
+//       QuerySnapshot doctorSnapshot = await _firestore.collection('doctors').where('isEnabled', isEqualTo: true).get();
+//       if (!mounted) return;
+
+//       _allDoctors = await Future.wait(doctorSnapshot.docs.map((doc) async {
+//         var data = doc.data() as Map<String, dynamic>;
+//         List<dynamic> affiliationsData = data['affiliatedHospitals'] ?? [];
+//         List<HospitalAffiliation> affiliations = affiliationsData.map((aff) {
+//           return HospitalAffiliation(
+//               hospitalId: aff['hospitalId'] as String,
+//               hospitalName: aff['hospitalName'] as String);
+//         }).toList();
+
+//         String specialtyId = data['specialtyId'] as String? ?? ""; // This is the doc ID from 'specialties'
+//         String specialtyName = "Unknown Specialty";
+
+//         if (specialtyId.isNotEmpty) {
+//           // Find in already fetched specialties
+//           final foundSpecialty = _allSpecialties.firstWhere(
+//             (s) => s.id == specialtyId,
+//             orElse: () => Specialty(id: specialtyId, name: "Loading...") // Placeholder
+//           );
+//           if (foundSpecialty.name != "Loading...") {
+//             specialtyName = foundSpecialty.name;
+//           } else {
+//             // Fallback: Fetch directly if not found (shouldn't happen if _fetchSpecialties ran first)
+//             try {
+//                 DocumentSnapshot specialtyDoc = await _firestore.collection('specialties').doc(specialtyId).get();
+//                 if (specialtyDoc.exists) {
+//                 specialtyName = (specialtyDoc.data() as Map<String, dynamic>)['name'] as String? ?? "Unnamed Specialty";
+//                 }
+//             } catch (e) {
+//                 print("Error fetching specialty details for doctor ${doc.id}, specialtyId ${specialtyId}: $e");
+//             }
+//           }
+//         }
+
+//         return Doctor(
+//           id: doc.id,
+//           name: data['fullName'] as String? ?? 'N/A', // Use fullName
+//           specialtyId: specialtyId,
+//           specialtyName: specialtyName,
+//           hospitalAffiliations: affiliations,
+//         );
+//       }).toList());
+
+//       _filterDoctors();
+//     } catch (e, s) {
+//       print("Error fetching all doctors: $e\n$s");
+//       if (mounted) _showError("Could not load doctor list.");
+//     }
+//     if (mounted) setState(() => _isLoadingDoctors = false);
+//   }
+
+//   void _filterDoctors() {
+//     if (!mounted) return;
+//     List<Doctor> tempFiltered;
+//     if (_searchTerm.isEmpty && _selectedSpecialty == null) {
+//       tempFiltered = List.from(_allDoctors);
+//     } else {
+//       tempFiltered = _allDoctors.where((doctor) {
+//         bool matchesSearchTerm = _searchTerm.isEmpty ||
+//             doctor.name.toLowerCase().contains(_searchTerm.toLowerCase()) ||
+//             doctor.specialtyName.toLowerCase().contains(_searchTerm.toLowerCase());
+        
+//         bool matchesSpecialty = _selectedSpecialty == null ||
+//             doctor.specialtyId == _selectedSpecialty!.id;
+        
+//         return matchesSearchTerm && matchesSpecialty;
+//       }).toList();
+//     }
+
+//     // If current selected doctor is no longer in filtered list, clear it
+//     if (_selectedDoctor != null && !tempFiltered.any((d) => d.id == _selectedDoctor!.id)) {
+//         _clearDoctorAndBelowSelections();
+//     }
+
+//     setState(() {
+//       _filteredDoctors = tempFiltered;
+//     });
+//   }
+
+//   void _clearDoctorAndBelowSelections() {
+//     if (!mounted) return;
+//     setState(() {
+//       _selectedDoctor = null;
+//       _hospitalAffiliations = [];
+//       _selectedHospitalAffiliation = null;
+//       _clearDateAndBelowSelections();
+//     });
+//   }
+
+//   void _clearDateAndBelowSelections() {
+//     if (!mounted) return;
+//     setState(() {
+//       _selectedDate = null;
+//       _availableTimeSlots = [];
+//       _selectedSlot = null;
+//     });
+//   }
+
+//   void _onSpecialtySelected(Specialty? specialty) {
+//     if (!mounted) return;
+//     setState(() {
+//       _selectedSpecialty = specialty;
+//       _searchController.clear(); // Clear search when specialty filter is used
+//       _searchTerm = "";
+//       _clearDoctorAndBelowSelections();
+//       _filterDoctors();
+//     });
+//   }
+
+//   void _onDoctorSelected(Doctor? doctor) {
+//     if (!mounted) return;
+//     setState(() {
+//       _selectedDoctor = doctor;
+//       _hospitalAffiliations = doctor?.hospitalAffiliations ?? [];
+//       // Auto-select first hospital if available, or null
+//       _selectedHospitalAffiliation = _hospitalAffiliations.isNotEmpty ? _hospitalAffiliations.first : null;
+//       _clearDateAndBelowSelections();
+//     });
+//   }
+
+//   void _onHospitalSelected(HospitalAffiliation? hospitalAffiliation) {
+//     if (!mounted) return;
+//     setState(() {
+//       _selectedHospitalAffiliation = hospitalAffiliation;
+//       _clearDateAndBelowSelections();
+//     });
+//   }
+
+//   Future<void> _selectDate(BuildContext context) async {
+//     if (_selectedDoctor == null || _selectedHospitalAffiliation == null) {
+//       _showError("Please select a doctor and hospital first.");
+//       return;
+//     }
+
+//     final DateTime? picked = await showDatePicker(
+//       context: context,
+//       initialDate: _selectedDate ?? DateTime.now().add(const Duration(days:1)), // Start from tomorrow
+//       firstDate: DateTime.now().add(const Duration(days:1)), // Can't book for today
+//       lastDate: DateTime.now().add(const Duration(days: 90)), // Book up to 90 days ahead
+//     );
+
+//     if (picked != null && picked != _selectedDate) {
+//       if (!mounted) return;
+//       setState(() {
+//         _selectedDate = picked;
+//         _selectedSlot = null; // Reset selected slot
+//         _fetchAvailableTimeSlots();
+//       });
+//     }
+//   }
+
+//   Future<void> _fetchAvailableTimeSlots() async {
+//     if (_selectedDoctor == null ||
+//         _selectedDate == null ||
+//         _selectedHospitalAffiliation == null) {
+//       if (mounted) setState(() => _availableTimeSlots = []);
+//       return;
+//     }
+//     if (!mounted) return;
+//     setState(() {
+//       _isLoadingTimeSlots = true;
+//       _availableTimeSlots = [];
+//       _selectedSlot = null;
+//     });
+
+//     try {
+//       // Define start and end of the selected day for Firestore query
+//       DateTime startOfDay = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 0, 0, 0);
+//       DateTime endOfDay = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 23, 59, 59);
+
+//       Timestamp startTimestamp = Timestamp.fromDate(startOfDay);
+//       Timestamp endTimestamp = Timestamp.fromDate(endOfDay);
+
+//       print("Fetching slots for Dr: ${_selectedDoctor!.id}, Hosp: ${_selectedHospitalAffiliation!.hospitalId}, Date: $_selectedDate");
+//       print("Querying slots from ${startOfDay.toIso8601String()} to ${endOfDay.toIso8601String()}");
+
+//       QuerySnapshot slotSnapshot = await _firestore
+//           .collection('doctors')
+//           .doc(_selectedDoctor!.id)
+//           .collection('availabilitySlots')
+//           .where('hospitalId', isEqualTo: _selectedHospitalAffiliation!.hospitalId)
+//           .where('startTime', isGreaterThanOrEqualTo: startTimestamp)
+//           .where('startTime', isLessThanOrEqualTo: endTimestamp)
+//           .where('isBooked', isEqualTo: false)
+//           .orderBy('startTime') // Important for displaying in order
+//           .get();
+
+//       if (!mounted) return;
+
+//       if (slotSnapshot.docs.isEmpty) {
+//         print("No available slots found matching criteria.");
+//       }
+
+//       _availableTimeSlots = slotSnapshot.docs.map((doc) {
+//         var data = doc.data() as Map<String, dynamic>;
+//         Timestamp startTimeStamp = data['startTime'] as Timestamp;
+//         Timestamp endTimeStamp = data['endTime'] as Timestamp;
+//         DateTime sTime = startTimeStamp.toDate();
+//         DateTime eTime = endTimeStamp.toDate();
+
+//         return AvailableSlot(
+//           slotId: doc.id,
+//           startTime: sTime,
+//           endTime: eTime,
+//           displayTime: "${DateFormat.jm().format(sTime)} - ${DateFormat.jm().format(eTime)}",
+//         );
+//       }).toList();
+
+//       print("Fetched ${_availableTimeSlots.length} available slots.");
+
+//     } catch (e, s) {
+//       print("Error fetching time slots: $e\n$s");
+//       if (mounted) _showError("Could not load available time slots.");
+//     } finally {
+//       if (mounted) setState(() => _isLoadingTimeSlots = false);
+//     }
+//   }
+
+//   Future<void> _bookAppointment() async {
+//     if (!_formKey.currentState!.validate()) {
+//        _showError("Please fill all required fields correctly.");
+//        return;
+//     }
+//     _formKey.currentState!.save();
+
+//     if (_selectedDoctor == null ||
+//         _selectedHospitalAffiliation == null ||
+//         _selectedDate == null ||
+//         _selectedSlot == null) {
+//       _showError("Please make all required selections (Doctor, Hospital, Date, Time).");
+//       return;
+//     }
+//     User? currentUser = _auth.currentUser;
+//     if (currentUser == null) {
+//       _showError("You must be logged in to book an appointment.");
+//       // Optionally redirect to login
+//       return;
+//     }
+
+//     if (!mounted) return;
+//     setState(() => _isBooking = true);
+
+//     final appointmentRef = _firestore.collection('appointments').doc();
+//     final slotRef = _firestore
+//         .collection('doctors')
+//         .doc(_selectedDoctor!.id)
+//         .collection('availabilitySlots')
+//         .doc(_selectedSlot!.slotId);
+
+//     try {
+//       // Use a Firestore transaction
+//       await _firestore.runTransaction((transaction) async {
+//         // 1. Read the slot to ensure it's still available
+//         DocumentSnapshot slotDoc = await transaction.get(slotRef);
+//         if (!slotDoc.exists) {
+//           throw Exception("Selected time slot no longer exists.");
+//         }
+//         var slotData = slotDoc.data() as Map<String, dynamic>;
+//         if (slotData['isBooked'] == true) {
+//           throw Exception("This time slot was just booked by someone else. Please select another.");
+//         }
+
+//         // 2. Create the appointment document
+//         transaction.set(appointmentRef, {
+//           'appointmentId': appointmentRef.id, // Store the ID within the document
+//           'specialtyId': _selectedDoctor!.specialtyId,
+//           'specialtyName': _selectedDoctor!.specialtyName,
+//           'doctorId': _selectedDoctor!.id,
+//           'doctorName': _selectedDoctor!.name,
+//           'hospitalId': _selectedHospitalAffiliation!.hospitalId,
+//           'hospitalName': _selectedHospitalAffiliation!.hospitalName,
+//           'appointmentStartTime': Timestamp.fromDate(_selectedSlot!.startTime),
+//           'appointmentEndTime': Timestamp.fromDate(_selectedSlot!.endTime),
+//           'patientName': _patientNameController.text.trim(),
+//           'patientContact': _patientContactController.text.trim(),
+//           'patientUid': currentUser.uid,
+//           'status': 'confirmed', // Or 'pending_confirmation' if admin needs to approve
+//           'bookedAt': FieldValue.serverTimestamp(),
+//           'slotId': _selectedSlot!.slotId, // Link back to the slot
+//         });
+
+//         // 3. Update the slot document
+//         transaction.update(slotRef, {
+//           'isBooked': true,
+//           'bookedByPatientId': currentUser.uid,
+//           'appointmentId': appointmentRef.id,
+//         });
+//       });
+
+//       _showFeedback('Appointment Booked Successfully!', isError: false);
+
+//       if (!mounted) return;
+//       // Reset the form and selections
+//       setState(() {
+//         _searchController.clear();
+//         _searchTerm = "";
+//         _selectedSpecialty = null;
+//         _clearDoctorAndBelowSelections(); // This will clear doctor, hospital, date, slot
+//         _patientNameController.clear(); // Consider if you want to keep these prefilled
+//         _patientContactController.clear(); // for subsequent bookings by same user
+//         _formKey.currentState?.reset();
+//         _filterDoctors(); // Re-filter doctors to show all
+//       });
+
+//     } catch (e) {
+//       print("Error booking appointment: $e");
+//       if (mounted) _showError("Failed to book appointment: ${e.toString().replaceFirst("Exception: ", "")}");
+//       // If booking failed, refresh slots in case one was taken
+//       if (mounted) _fetchAvailableTimeSlots();
+//     } finally {
+//       if (mounted) setState(() => _isBooking = false);
+//     }
+//   }
+
+//   void _showFeedback(String message, {bool isError = false}) {
+//     if (mounted && context.mounted) {
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(
+//           content: Text(message),
+//           backgroundColor: isError ? Colors.redAccent : Theme.of(context).primaryColor,
+//           duration: const Duration(seconds: 3),
+//         ),
+//       );
+//     }
+//   }
+
+//   void _showError(String message) {
+//     _showFeedback(message, isError: true);
+//   }
+
+//   Future<void> _signOut() async {
+//     try {
+//       await _auth.signOut();
+//       if (mounted) {
+//         Navigator.of(context).pushAndRemoveUntil(
+//           MaterialPageRoute(builder: (context) => RoleLoginPage()),
+//           (Route<dynamic> route) => false,
+//         );
+//       }
+//     } catch (e) {
+//       if (mounted) _showError('Error signing out: $e');
+//     }
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text('Find & Book Appointment'),
+//         actions: [
+//           IconButton(
+//               icon: const Icon(Icons.logout),
+//               tooltip: 'Sign Out',
+//               onPressed: _signOut),
+//         ],
+//       ),
+//       body: Padding(
+//         padding: const EdgeInsets.all(16.0),
+//         child: Form(
+//           key: _formKey,
+//           child: ListView(
+//             children: <Widget>[
+//               // Search Field
+//               TextField(
+//                 controller: _searchController,
+//                 decoration: InputDecoration(
+//                   labelText: 'Search Doctor or Specialty',
+//                   hintText: 'e.g., Dr. Alice or Cardiology',
+//                   prefixIcon: const Icon(Icons.search),
+//                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                   suffixIcon: _searchTerm.isNotEmpty
+//                       ? IconButton(
+//                           icon: const Icon(Icons.clear),
+//                           onPressed: () {
+//                             _searchController.clear(); // This will trigger the listener
+//                           },
+//                         )
+//                       : null,
+//                 ),
+//               ),
+//               const SizedBox(height: 16),
+
+//               // Specialty Filter Dropdown (only if search is empty)
+//               if (_searchTerm.isEmpty)
+//                 DropdownButtonFormField<Specialty?>(
+//                   decoration: InputDecoration(
+//                       labelText: 'Filter by Specialty (Optional)',
+//                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                   ),
+//                   value: _selectedSpecialty,
+//                   hint: const Text('All Specialties'),
+//                   isExpanded: true,
+//                   items: [
+//                     const DropdownMenuItem<Specialty?>(
+//                       value: null,
+//                       child: Text("All Specialties"),
+//                     ),
+//                     ..._allSpecialties.map((Specialty specialty) => DropdownMenuItem<Specialty?>(
+//                           value: specialty,
+//                           child: Text(specialty.name),
+//                         )),
+//                   ],
+//                   onChanged: _isLoadingSpecialties ? null : _onSpecialtySelected,
+//                 ),
+//               if (_isLoadingSpecialties && _searchTerm.isEmpty)
+//                 const Center(
+//                     child: Padding(
+//                         padding: EdgeInsets.all(8.0),
+//                         child: CircularProgressIndicator())),
+//               const SizedBox(height: 16),
+
+//               // Select Doctor Dropdown
+//               Text("Select Doctor", style: Theme.of(context).textTheme.titleMedium),
+//               const SizedBox(height: 8),
+//               _isLoadingDoctors
+//                   ? const Center(child: CircularProgressIndicator())
+//                   : _filteredDoctors.isEmpty
+//                       ? Center(
+//                           child: Padding(
+//                           padding: const EdgeInsets.symmetric(vertical: 16.0),
+//                           child: Text(
+//                             _allDoctors.isEmpty && !_isLoadingSpecialties? "No doctors available at the moment."
+//                             : "No doctors found matching your criteria.",
+//                           style: TextStyle(color: Colors.grey[600]),),
+//                         ))
+//                       : DropdownButtonFormField<Doctor>(
+//                           decoration: InputDecoration(
+//                             labelText: 'Select Doctor',
+//                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                           ),
+//                           value: _selectedDoctor,
+//                           hint: const Text('Choose a doctor'),
+//                           isExpanded: true,
+//                           items: _filteredDoctors.map((Doctor doctor) {
+//                             return DropdownMenuItem<Doctor>(
+//                                 value: doctor,
+//                                 child: Text("${doctor.name} (${doctor.specialtyName})"));
+//                           }).toList(),
+//                           onChanged: _onDoctorSelected,
+//                           validator: (value) => value == null ? 'Please select a doctor' : null,
+//                         ),
+//               const SizedBox(height: 16),
+
+//               // Select Hospital Dropdown
+//               if (_selectedDoctor != null && _hospitalAffiliations.isNotEmpty)
+//                 DropdownButtonFormField<HospitalAffiliation>(
+//                   decoration: InputDecoration(
+//                     labelText: 'Select Hospital/Clinic',
+//                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                   ),
+//                   value: _selectedHospitalAffiliation,
+//                   hint: const Text('Choose a hospital or clinic'),
+//                   isExpanded: true,
+//                   items: _hospitalAffiliations.map((HospitalAffiliation aff) {
+//                     return DropdownMenuItem<HospitalAffiliation>(
+//                         value: aff, child: Text(aff.hospitalName));
+//                   }).toList(),
+//                   onChanged: _onHospitalSelected,
+//                   validator: (value) => value == null ? 'Please select a hospital/clinic' : null,
+//                 ),
+//               if (_selectedDoctor != null && _hospitalAffiliations.isEmpty)
+//                 Padding(
+//                   padding: const EdgeInsets.symmetric(vertical: 8.0),
+//                   child: Text("This doctor has no listed hospital affiliations.", style: TextStyle(color: Colors.orange.shade700)),
+//                 ),
+//               const SizedBox(height: 16),
+
+//               // Select Date
+//               TextFormField(
+//                 decoration: InputDecoration(
+//                   labelText: 'Select Date',
+//                   hintText: _selectedDoctor == null || _selectedHospitalAffiliation == null
+//                       ? 'Select doctor & hospital first'
+//                       : 'Tap to choose a date',
+//                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                   suffixIcon: Icon(Icons.calendar_today,
+//                       color: Theme.of(context).primaryColorDark),
+//                 ),
+//                 readOnly: true,
+//                 controller: TextEditingController(
+//                   text: _selectedDate == null
+//                       ? ''
+//                       : DateFormat.yMMMd().format(_selectedDate!), // e.g., Dec 15, 2023
+//                 ),
+//                 onTap: _selectedDoctor == null || _selectedHospitalAffiliation == null
+//                     ? null : () => _selectDate(context),
+//                 validator: (value) => _selectedDate == null ? 'Please select a date' : null,
+//               ),
+//               const SizedBox(height: 16),
+
+//               // Select Time Slot Dropdown
+//               if (_selectedDate != null && _selectedDoctor != null && _selectedHospitalAffiliation != null)
+//                 DropdownButtonFormField<AvailableSlot>(
+//                   decoration: InputDecoration(
+//                     labelText: 'Select Time Slot',
+//                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                     enabled: !_isLoadingTimeSlots && _availableTimeSlots.isNotEmpty,
+//                   ),
+//                   value: _selectedSlot,
+//                   hint: _isLoadingTimeSlots
+//                       ? const Text('Loading slots...')
+//                       : _availableTimeSlots.isEmpty
+//                           ? Text('No slots available for ${DateFormat.yMMMd().format(_selectedDate!)}')
+//                           : const Text('Choose a time slot'),
+//                   isExpanded: true,
+//                   items: _availableTimeSlots.map((AvailableSlot slot) {
+//                     return DropdownMenuItem<AvailableSlot>(
+//                         value: slot, child: Text(slot.displayTime));
+//                   }).toList(),
+//                   onChanged: _isLoadingTimeSlots || _availableTimeSlots.isEmpty
+//                       ? null
+//                       : (AvailableSlot? newValue) => setState(() => _selectedSlot = newValue),
+//                   validator: (value) => value == null ? 'Please select a time slot' : null,
+//                 ),
+//               if (_isLoadingTimeSlots && _selectedDate != null && _selectedDoctor != null && _selectedHospitalAffiliation != null)
+//                 const Center(
+//                     child: Padding(
+//                         padding: EdgeInsets.all(8.0),
+//                         child: CircularProgressIndicator())),
+//               const SizedBox(height: 20),
+
+//               // Patient Details
+//               TextFormField(
+//                 controller: _patientNameController,
+//                 decoration: InputDecoration(
+//                     labelText: 'Your Full Name',
+//                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                     prefixIcon: Icon(Icons.person_outline)),
+//                 validator: (value) => (value == null || value.isEmpty) ? 'Please enter your name' : null,
+//                 textInputAction: TextInputAction.next,
+//               ),
+//               const SizedBox(height: 16),
+//               TextFormField(
+//                 controller: _patientContactController,
+//                 decoration: InputDecoration(
+//                     labelText: 'Your Contact Number',
+//                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                     prefixIcon: Icon(Icons.phone_outlined)),
+//                 keyboardType: TextInputType.phone,
+//                 validator: (value) {
+//                   if (value == null || value.isEmpty) return 'Please enter contact number';
+//                   if (!RegExp(r'^[0-9\s+-]{7,}$').hasMatch(value)) return 'Please enter a valid phone number';
+//                   return null;
+//                 },
+//                 textInputAction: TextInputAction.done,
+//               ),
+//               const SizedBox(height: 30),
+
+//               // Book Appointment Button
+//               ElevatedButton(
+//                 style: ElevatedButton.styleFrom(
+//                   padding: const EdgeInsets.symmetric(vertical: 16.0),
+//                   backgroundColor: Theme.of(context).primaryColor,
+//                   foregroundColor: Colors.white,
+//                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+//                 ),
+//                 onPressed: _isBooking ? null : _bookAppointment,
+//                 child: _isBooking
+//                     ? const SizedBox(
+//                         height: 24,
+//                         width: 24,
+//                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3.0))
+//                     : const Text('Book Appointment', style: TextStyle(fontSize: 16)),
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import 'package:flutter/material.dart';
+// import 'package:intl/intl.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:medi_sync_plus_app/pages/login_page/role_login_page.dart'; // Assuming this is your login page
+
+// // --- Data Models (Adjusted) ---
+// class Specialty {
+//   final String id; // e.g., "cardiology", "dentistry"
+//   final String name; // e.g., "Cardiology", "Dentistry"
+//   Specialty({required this.id, required this.name});
+
+//   @override
+//   bool operator ==(Object other) =>
+//       identical(this, other) ||
+//       other is Specialty && runtimeType == other.runtimeType && id == other.id;
+
+//   @override
+//   int get hashCode => id.hashCode;
+
+//   @override
+//   String toString() => 'Specialty(id: $id, name: $name)';
+// }
+
+// class Doctor {
+//   final String id;
+//   final String name;
+//   final String specialtyId; // e.g., "cardiology" - EXPECTED FROM FIRESTORE
+//   final String specialtyName; // e.g., "Cardiology" - RESOLVED IN APP
+//   final List<HospitalAffiliation> hospitalAffiliations;
+
+//   Doctor({
+//     required this.id,
+//     required this.name,
+//     required this.specialtyId,
+//     required this.specialtyName,
+//     required this.hospitalAffiliations,
+//   });
+
+//   @override
+//   bool operator ==(Object other) =>
+//       identical(this, other) ||
+//       other is Doctor && runtimeType == other.runtimeType && id == other.id;
+
+//   @override
+//   int get hashCode => id.hashCode;
+
+//    @override
+//   String toString() => 'Doctor(id: $id, name: $name, specialtyId: $specialtyId, specialtyName: $specialtyName, affiliations: ${hospitalAffiliations.length})';
+// }
+
+// class HospitalAffiliation {
+//   final String hospitalId;
+//   final String hospitalName;
+//   // final String department; // Optional: Add if you need it from affiliatedHospitals maps
+
+//   HospitalAffiliation({
+//     required this.hospitalId,
+//     required this.hospitalName,
+//     // required this.department, // Optional
+//   });
+
+//   @override
+//   bool operator ==(Object other) =>
+//       identical(this, other) ||
+//       other is HospitalAffiliation &&
+//           runtimeType == other.runtimeType &&
+//           hospitalId == other.hospitalId;
+
+//   @override
+//   int get hashCode => hospitalId.hashCode;
+
+//   @override
+//   String toString() => 'HospitalAffiliation(id: $hospitalId, name: $hospitalName)';
+// }
+
+// class AvailableSlot {
+//   final String slotId;
+//   final DateTime startTime;
+//   final DateTime endTime;
+//   final String displayTime;
+
+//   AvailableSlot({
+//     required this.slotId,
+//     required this.startTime,
+//     required this.endTime,
+//     required this.displayTime,
+//   });
+
+//    @override
+//   bool operator ==(Object other) =>
+//       identical(this, other) ||
+//       other is AvailableSlot &&
+//           runtimeType == other.runtimeType &&
+//           slotId == other.slotId;
+
+//   @override
+//   int get hashCode => slotId.hashCode;
+
+//   @override
+//   String toString() => 'AvailableSlot(id: $slotId, displayTime: $displayTime)';
+// }
+// // --- End Data Models ---
+
+// class AppointmentBookingPage extends StatefulWidget {
+//   const AppointmentBookingPage({super.key});
+
+//   @override
+//   State<AppointmentBookingPage> createState() => _AppointmentBookingPageState();
+// }
+
+// class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
+//   final _formKey = GlobalKey<FormState>();
+//   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+//   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+//   final TextEditingController _searchController = TextEditingController();
+//   String _searchTerm = "";
+
+//   Specialty? _selectedSpecialty;
+//   Doctor? _selectedDoctor;
+//   HospitalAffiliation? _selectedHospitalAffiliation;
+//   DateTime? _selectedDate;
+//   AvailableSlot? _selectedSlot;
+
+//   final TextEditingController _patientNameController = TextEditingController();
+//   final TextEditingController _patientContactController = TextEditingController();
+
+//   List<Specialty> _allSpecialties = [];
+//   List<Doctor> _allDoctors = [];
+//   List<Doctor> _filteredDoctors = [];
+//   List<HospitalAffiliation> _hospitalAffiliations = [];
+//   List<AvailableSlot> _availableTimeSlots = [];
+
+//   bool _isLoadingSpecialties = true;
+//   bool _isLoadingDoctors = false;
+//   bool _isLoadingTimeSlots = false;
+//   bool _isBooking = false;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     print("AppointmentBookingPage: initState called");
+//     _fetchInitialData();
+//     _searchController.addListener(() {
+//       if (!mounted) return;
+//       setState(() {
+//         _searchTerm = _searchController.text.trim();
+//         _filterDoctors();
+//       });
+//     });
+//   }
+
+//   @override
+//   void dispose() {
+//     print("AppointmentBookingPage: dispose called");
+//     _searchController.dispose();
+//     _patientNameController.dispose();
+//     _patientContactController.dispose();
+//     super.dispose();
+//   }
+
+//   Future<void> _fetchInitialData() async {
+//     print("AppointmentBookingPage: _fetchInitialData started");
+//     User? currentUser = _auth.currentUser;
+//     if (currentUser == null) {
+//       print("AppointmentBookingPage: User not authenticated. Redirecting to login.");
+//       if (mounted) {
+//         _showError("Please log in to continue.");
+//         Navigator.of(context).pushAndRemoveUntil(
+//           MaterialPageRoute(builder: (context) => const RoleLoginPage()),
+//           (Route<dynamic> route) => false,
+//         );
+//       }
+//       return;
+//     }
+//     print("AppointmentBookingPage: User ${currentUser.uid} is authenticated.");
+
+//     try {
+//         DocumentSnapshot userProfile = await _firestore.collection('users').doc(currentUser.uid).get();
+//         if(userProfile.exists && userProfile.data() != null) {
+//             var userData = userProfile.data() as Map<String, dynamic>;
+//             print("AppointmentBookingPage: Fetched user profile data: $userData");
+//             if(userData.containsKey('fullName') && userData['fullName'] != null) {
+//                 _patientNameController.text = userData['fullName'];
+//             }
+//             if(userData.containsKey('phoneNumber') && userData['phoneNumber'] != null) {
+//                 _patientContactController.text = userData['phoneNumber'];
+//             }
+//         } else {
+//           print("AppointmentBookingPage: User profile not found or empty for UID: ${currentUser.uid}");
+//         }
+//     } catch (e) {
+//         print("AppointmentBookingPage: Error fetching user profile: $e");
+//     }
+
+//     await _fetchSpecialties();
+//     await _fetchAllDoctors();
+//     print("AppointmentBookingPage: _fetchInitialData completed");
+//   }
+
+//   Future<void> _fetchSpecialties() async {
+//     if (!mounted) return;
+//     setState(() => _isLoadingSpecialties = true);
+//     print("AppointmentBookingPage: _fetchSpecialties - Fetching from 'specialties' collection...");
+//     try {
+//       QuerySnapshot snapshot =
+//           await _firestore.collection('specialties').orderBy('name').get();
+//       if (!mounted) return;
+
+//       if (snapshot.docs.isEmpty) {
+//         print("AppointmentBookingPage: _fetchSpecialties - No specialties found in Firestore.");
+//         if (mounted) _showError("No specialties available.");
+//          setState(() => _allSpecialties = []);
+//         return;
+//       }
+
+//       _allSpecialties = snapshot.docs.map((doc) {
+//         var data = doc.data() as Map<String, dynamic>;
+//         print("AppointmentBookingPage: _fetchSpecialties - Raw specialty data for doc ID ${doc.id}: $data");
+//         return Specialty(id: doc.id, name: data['name'] as String? ?? "Unnamed Specialty");
+//       }).toList();
+
+//       print("AppointmentBookingPage: _fetchSpecialties - Fetched and Mapped specialties: ${_allSpecialties.map((s) => '${s.id}: ${s.name}').join(', ')}");
+//     } catch (e, stackTrace) {
+//       print("AppointmentBookingPage: _fetchSpecialties - Error fetching specialties: $e\n$stackTrace");
+//       if (mounted) _showError("Could not load specialties.");
+//     } finally {
+//       if (mounted) {
+//         setState(() => _isLoadingSpecialties = false);
+//         // _filterDoctors(); // filterDoctors will be called after _fetchAllDoctors completes
+//       }
+//     }
+//   }
+
+//   Future<void> _fetchAllDoctors() async {
+//     if (!mounted) return;
+//     print("AppointmentBookingPage: _fetchAllDoctors - Fetching doctors...");
+//     setState(() {
+//       _isLoadingDoctors = true;
+//       _allDoctors = [];
+//       _filteredDoctors = [];
+//     });
+//     try {
+//       // QuerySnapshot doctorSnapshot = await _firestore.collection('doctors').where('isEnabled', isEqualTo: true).get(); // ORIGINAL
+//       QuerySnapshot doctorSnapshot = await _firestore.collection('doctors').get(); // TEMP: Fetch ALL doctors
+//       print("AppointmentBookingPage: _fetchAllDoctors - TEMP TEST: Fetched ALL doctors (no 'isEnabled' filter). Count: ${doctorSnapshot.docs.length}");
+
+
+//       if (!mounted) return;
+
+//       _allDoctors = await Future.wait(doctorSnapshot.docs.map((doc) async {
+//         var data = doc.data() as Map<String, dynamic>;
+//         print("AppointmentBookingPage: _fetchAllDoctors - Raw doctor data for doc ID ${doc.id}: $data");
+
+//         // --- Affiliated Hospitals Parsing ---
+//         List<dynamic> affiliationsData = data['affiliatedHospitals'] ?? []; // Default to empty list if null
+//         print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - raw affiliationsData: $affiliationsData (Type: ${affiliationsData.runtimeType})");
+//         List<HospitalAffiliation> affiliations = [];
+//         if (affiliationsData is List) {
+//             affiliations = affiliationsData.map((aff) {
+//               if (aff is Map<String, dynamic>) {
+//                   print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - mapping affiliation map: $aff");
+//                   return HospitalAffiliation(
+//                       hospitalId: aff['hospitalId'] as String? ?? 'unknown_hosp_id_${doc.id}_${affiliations.length}',
+//                       hospitalName: aff['hospitalName'] as String? ?? 'Unknown Hospital',
+//                       // department: aff['department'] as String? ?? 'N/A Dept', // Optional
+//                   );
+//               }
+//               print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - affiliation item is NOT a map: $aff. Type: ${aff.runtimeType}");
+//               return HospitalAffiliation(hospitalId: 'error_hosp_id_${doc.id}_${affiliations.length}', hospitalName: 'Error Hospital Structure');
+//             }).toList();
+//         } else {
+//              print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - affiliatedHospitals field is NOT a List. Actual type: ${affiliationsData.runtimeType}");
+//         }
+
+
+//         // --- Specialty Parsing ---
+//         // IMPORTANT: Your Firestore 'doctors' documents NEED a 'specialtyId' field (string)
+//         // that matches a document ID from your 'specialties' collection.
+//         // The 'specializations' array is different.
+//         String specialtyIdFromDoc = data['specialtyId'] as String? ?? ""; // EXPECTING THIS FIELD
+//         print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Attempting to get 'specialtyId' from Firestore: '$specialtyIdFromDoc'");
+//         if (specialtyIdFromDoc.isEmpty) {
+//             print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+//             print("APPOINTMENT_BOOKING_PAGE WARNING: Doctor ${doc.id} is MISSING 'specialtyId' field in Firestore.");
+//             print("Please add a 'specialtyId' (string) field to this doctor document,");
+//             print("with a value matching a document ID from your 'specialties' collection (e.g., 'cardiology').");
+//             print("The existing 'specializations' array is NOT used for this primary specialty lookup.");
+//             print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+//         }
+
+//         String resolvedSpecialtyName = "Unknown Specialty";
+//         if (specialtyIdFromDoc.isNotEmpty) {
+//           final foundSpecialty = _allSpecialties.firstWhere(
+//             (s) => s.id == specialtyIdFromDoc,
+//             orElse: () {
+//               print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - specialtyId '$specialtyIdFromDoc' NOT FOUND in _allSpecialties. _allSpecialties has ${_allSpecialties.length} items: ${_allSpecialties.map((sp) => sp.id).join(', ')}");
+//               return Specialty(id: specialtyIdFromDoc, name: "Loading...");
+//             }
+//           );
+//           if (foundSpecialty.name != "Loading...") {
+//             resolvedSpecialtyName = foundSpecialty.name;
+//           } else {
+//             print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - specialtyId '$specialtyIdFromDoc' - Attempting fallback direct fetch for specialty name because it was 'Loading...'.");
+//             try {
+//                 DocumentSnapshot specialtyDoc = await _firestore.collection('specialties').doc(specialtyIdFromDoc).get();
+//                 if (specialtyDoc.exists) {
+//                   resolvedSpecialtyName = (specialtyDoc.data() as Map<String, dynamic>)['name'] as String? ?? "Unnamed Specialty (Fallback)";
+//                    print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Fallback fetch successful for '$specialtyIdFromDoc': $resolvedSpecialtyName");
+//                 } else {
+//                    print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Fallback fetch: specialty document '$specialtyIdFromDoc' does NOT exist.");
+//                 }
+//             } catch (e) {
+//                 print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Error during fallback specialty fetch for '$specialtyIdFromDoc': $e");
+//             }
+//           }
+//         }
+//         print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Resolved specialtyName: '$resolvedSpecialtyName', Original specialtyId from doc: '$specialtyIdFromDoc'");
+
+//         Doctor mappedDoctor = Doctor(
+//           id: doc.id,
+//           name: data['fullName'] as String? ?? 'N/A Doctor Name', // Ensure 'fullName' exists
+//           specialtyId: specialtyIdFromDoc, // This will be empty if 'specialtyId' field is missing in Firestore
+//           specialtyName: resolvedSpecialtyName,
+//           hospitalAffiliations: affiliations,
+//         );
+//         print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Mapped Doctor object: $mappedDoctor");
+//         return mappedDoctor;
+//       }).toList());
+
+//       print("AppointmentBookingPage: _fetchAllDoctors - Total doctors fetched and mapped: ${_allDoctors.length}");
+//       _filterDoctors(); // Now call filterDoctors
+//     } catch (e, s) {
+//       print("AppointmentBookingPage: _fetchAllDoctors - Error fetching all doctors: $e\n$s");
+//       if (mounted) _showError("Could not load doctor list.");
+//     }
+//     if (mounted) setState(() => _isLoadingDoctors = false);
+//   }
+
+//   void _filterDoctors() {
+//     if (!mounted) return;
+
+//     // TEMP: If using the "fetch ALL doctors" approach, manually filter by isEnabled here for now
+//     // This is NOT efficient for large datasets but helps for testing the 'isEnabled' logic
+//     List<Doctor> doctorsToConsider = _allDoctors;
+//     // Comment out the next block if you fix the Firestore query for 'isEnabled'
+//     //
+//     // print("AppointmentBookingPage: _filterDoctors - Manually checking 'isEnabled' for ${doctorsToConsider.length} doctors (TEMP)");
+//     // doctorsToConsider = _allDoctors.where((doctor) {
+//     //    // This requires fetching the 'isEnabled' field during _fetchAllDoctors if you keep this manual filter
+//     //    // For now, assuming all doctors fetched should be considered if the Firestore query is `.get()`
+//     //    // If you add 'isEnabled' to your Doctor model and fetch it, you can filter here:
+//     //    // return doctor.isEnabled == true;
+//     //    return true; // Placeholder if not fetching 'isEnabled' into Doctor model
+//     // }).toList();
+//     // print("AppointmentBookingPage: _filterDoctors - Doctors considered after manual 'isEnabled' check (TEMP): ${doctorsToConsider.length}");
+
+
+//     List<Doctor> tempFiltered;
+//     if (_searchTerm.isEmpty && _selectedSpecialty == null) {
+//       tempFiltered = List.from(doctorsToConsider);
+//     } else {
+//       tempFiltered = doctorsToConsider.where((doctor) {
+//         bool matchesSearchTerm = _searchTerm.isEmpty ||
+//             doctor.name.toLowerCase().contains(_searchTerm.toLowerCase()) ||
+//             doctor.specialtyName.toLowerCase().contains(_searchTerm.toLowerCase());
+
+//         bool matchesSpecialty = _selectedSpecialty == null ||
+//             doctor.specialtyId == _selectedSpecialty!.id;
+
+//         return matchesSearchTerm && matchesSpecialty;
+//       }).toList();
+//     }
+
+//     print("AppointmentBookingPage: _filterDoctors - Search: '$_searchTerm', Selected Specialty ID: '${_selectedSpecialty?.id}'. Input doctors: ${doctorsToConsider.length}, Filtered count: ${tempFiltered.length}");
+//     if (tempFiltered.isNotEmpty) {
+//         print("AppointmentBookingPage: _filterDoctors - First filtered doctor: ${tempFiltered.first}");
+//     } else if (doctorsToConsider.isNotEmpty) {
+//         print("AppointmentBookingPage: _filterDoctors - No doctors match criteria. First available doctor for reference: ${doctorsToConsider.first}");
+//     }
+
+
+//     if (_selectedDoctor != null && !tempFiltered.any((d) => d.id == _selectedDoctor!.id)) {
+//         print("AppointmentBookingPage: _filterDoctors - Current selected doctor ${_selectedDoctor!.id} no longer in filtered list. Clearing doctor selection.");
+//         _clearDoctorAndBelowSelections();
+//     }
+
+//     setState(() {
+//       _filteredDoctors = tempFiltered;
+//     });
+//   }
+
+//   void _clearDoctorAndBelowSelections() {
+//     if (!mounted) return;
+//     print("AppointmentBookingPage: _clearDoctorAndBelowSelections called.");
+//     setState(() {
+//       _selectedDoctor = null;
+//       _hospitalAffiliations = [];
+//       _selectedHospitalAffiliation = null;
+//       _clearDateAndBelowSelections();
+//     });
+//   }
+
+//   void _clearDateAndBelowSelections() {
+//     if (!mounted) return;
+//      print("AppointmentBookingPage: _clearDateAndBelowSelections called.");
+//     setState(() {
+//       _selectedDate = null;
+//       _availableTimeSlots = [];
+//       _selectedSlot = null;
+//     });
+//   }
+
+//   void _onSpecialtySelected(Specialty? specialty) {
+//     if (!mounted) return;
+//     print("AppointmentBookingPage: _onSpecialtySelected - ${specialty?.id ?? 'All'}");
+//     setState(() {
+//       _selectedSpecialty = specialty;
+//       _searchController.clear();
+//       _searchTerm = "";
+//       _clearDoctorAndBelowSelections();
+//       _filterDoctors();
+//     });
+//   }
+
+//   void _onDoctorSelected(Doctor? doctor) {
+//     if (!mounted) return;
+//      print("AppointmentBookingPage: _onDoctorSelected - ${doctor?.id ?? 'None'}");
+//     setState(() {
+//       _selectedDoctor = doctor;
+//       _hospitalAffiliations = doctor?.hospitalAffiliations ?? [];
+//       _selectedHospitalAffiliation = _hospitalAffiliations.isNotEmpty ? _hospitalAffiliations.first : null;
+//       print("AppointmentBookingPage: _onDoctorSelected - Selected hospital affiliation: ${_selectedHospitalAffiliation?.hospitalName}");
+//       _clearDateAndBelowSelections();
+//     });
+//   }
+
+//   void _onHospitalSelected(HospitalAffiliation? hospitalAffiliation) {
+//     if (!mounted) return;
+//     print("AppointmentBookingPage: _onHospitalSelected - ${hospitalAffiliation?.hospitalId ?? 'None'}");
+//     setState(() {
+//       _selectedHospitalAffiliation = hospitalAffiliation;
+//       _clearDateAndBelowSelections();
+//     });
+//   }
+
+//   Future<void> _selectDate(BuildContext context) async {
+//     if (_selectedDoctor == null || _selectedHospitalAffiliation == null) {
+//       _showError("Please select a doctor and hospital first.");
+//       return;
+//     }
+//     print("AppointmentBookingPage: _selectDate - Opening date picker.");
+//     final DateTime? picked = await showDatePicker(
+//       context: context,
+//       initialDate: _selectedDate ?? DateTime.now().add(const Duration(days:1)),
+//       firstDate: DateTime.now().add(const Duration(days:1)),
+//       lastDate: DateTime.now().add(const Duration(days: 90)),
+//     );
+
+//     if (picked != null && picked != _selectedDate) {
+//       if (!mounted) return;
+//       print("AppointmentBookingPage: _selectDate - Date picked: $picked");
+//       setState(() {
+//         _selectedDate = picked;
+//         _selectedSlot = null;
+//         _fetchAvailableTimeSlots();
+//       });
+//     } else {
+//       print("AppointmentBookingPage: _selectDate - Date picker cancelled or same date picked.");
+//     }
+//   }
+
+//   Future<void> _fetchAvailableTimeSlots() async {
+
+//     // At the beginning of _fetchAvailableTimeSlots
+//     print("AppointmentBookingPage: _fetchAvailableTimeSlots - CHECKING hospitalId. Selected Hospital ID: '${_selectedHospitalAffiliation?.hospitalId}'");
+//     if (_selectedDoctor == null ||
+//         _selectedDate == null ||
+//         _selectedHospitalAffiliation == null) {
+//       if (mounted) setState(() => _availableTimeSlots = []);
+//       print("AppointmentBookingPage: _fetchAvailableTimeSlots - Prerequisites not met. Doctor: ${_selectedDoctor?.id}, Date: $_selectedDate, Hospital: ${_selectedHospitalAffiliation?.hospitalId}");
+//       return;
+//     }
+//     if (!mounted) return;
+//     print("AppointmentBookingPage: _fetchAvailableTimeSlots - Fetching for Dr: ${_selectedDoctor!.id}, Hosp: ${_selectedHospitalAffiliation!.hospitalId}, Date: $_selectedDate");
+//     setState(() {
+//       _isLoadingTimeSlots = true;
+//       _availableTimeSlots = [];
+//       _selectedSlot = null;
+//     });
+
+//     try {
+//       DateTime startOfDay = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 0, 0, 0);
+//       DateTime endOfDay = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 23, 59, 59);
+//       Timestamp startTimestamp = Timestamp.fromDate(startOfDay);
+//       Timestamp endTimestamp = Timestamp.fromDate(endOfDay);
+
+//       print("AppointmentBookingPage: _fetchAvailableTimeSlots - Querying slots from ${startOfDay.toIso8601String()} to ${endOfDay.toIso8601String()} for hospitalId: ${_selectedHospitalAffiliation!.hospitalId}");
+
+//       QuerySnapshot slotSnapshot = await _firestore
+//           .collection('doctors')
+//           .doc(_selectedDoctor!.id)
+//           .collection('availabilitySlots')
+//           .where('hospitalId', isEqualTo: _selectedHospitalAffiliation!.hospitalId)
+//           .where('startTime', isGreaterThanOrEqualTo: startTimestamp)
+//           .where('startTime', isLessThanOrEqualTo: endTimestamp)
+//           .where('isBooked', isEqualTo: false)
+//           .orderBy('startTime')
+//           .get();
+
+//       if (!mounted) return;
+
+//       if (slotSnapshot.docs.isEmpty) {
+//         print("AppointmentBookingPage: _fetchAvailableTimeSlots - No available slots found matching criteria.");
+//       } else {
+//         print("AppointmentBookingPage: _fetchAvailableTimeSlots - Found ${slotSnapshot.docs.length} raw slot documents.");
+//       }
+
+//       _availableTimeSlots = slotSnapshot.docs.map((doc) {
+//         var data = doc.data() as Map<String, dynamic>;
+//         print("AppointmentBookingPage: _fetchAvailableTimeSlots - Mapping slot doc ${doc.id}, data: $data");
+//         Timestamp startTimeStamp = data['startTime'] as Timestamp;
+//         Timestamp endTimeStamp = data['endTime'] as Timestamp;
+//         DateTime sTime = startTimeStamp.toDate();
+//         DateTime eTime = endTimeStamp.toDate();
+
+//         return AvailableSlot(
+//           slotId: doc.id,
+//           startTime: sTime,
+//           endTime: eTime,
+//           displayTime: "${DateFormat.jm().format(sTime)} - ${DateFormat.jm().format(eTime)}",
+//         );
+//       }).toList();
+
+//       print("AppointmentBookingPage: _fetchAvailableTimeSlots - Mapped ${_availableTimeSlots.length} available slots: ${_availableTimeSlots.map((s)=>s.displayTime).join(', ')}");
+
+//     } catch (e, s) {
+//       print("AppointmentBookingPage: _fetchAvailableTimeSlots - Error fetching time slots: $e\n$s");
+//       if (mounted) _showError("Could not load time slots.");
+//     } finally {
+//       if (mounted) setState(() => _isLoadingTimeSlots = false);
+//     }
+//   }
+
+//   Future<void> _bookAppointment() async {
+//     if (!_formKey.currentState!.validate()) {
+//        _showError("Please fill all required fields correctly.");
+//        print("AppointmentBookingPage: _bookAppointment - Form validation failed.");
+//        return;
+//     }
+//     _formKey.currentState!.save();
+//      print("AppointmentBookingPage: _bookAppointment - Form validated and saved.");
+
+//     if (_selectedDoctor == null ||
+//         _selectedHospitalAffiliation == null ||
+//         _selectedDate == null ||
+//         _selectedSlot == null) {
+//       _showError("Please make all required selections.");
+//       print("AppointmentBookingPage: _bookAppointment - Missing selections: Dr: ${_selectedDoctor?.id}, Hosp: ${_selectedHospitalAffiliation?.hospitalId}, Date: $_selectedDate, Slot: ${_selectedSlot?.slotId}");
+//       return;
+//     }
+//     User? currentUser = _auth.currentUser;
+//     if (currentUser == null) {
+//       _showError("You must be logged in.");
+//       print("AppointmentBookingPage: _bookAppointment - Current user is null.");
+//       return;
+//     }
+
+//     if (!mounted) return;
+//     setState(() => _isBooking = true);
+//     print("AppointmentBookingPage: _bookAppointment - Attempting to book for User: ${currentUser.uid}, Doctor: ${_selectedDoctor!.id}, Slot: ${_selectedSlot!.slotId}");
+
+
+//     final appointmentRef = _firestore.collection('appointments').doc();
+//     final slotRef = _firestore
+//         .collection('doctors')
+//         .doc(_selectedDoctor!.id)
+//         .collection('availabilitySlots')
+//         .doc(_selectedSlot!.slotId);
+
+//     try {
+//       await _firestore.runTransaction((transaction) async {
+//         print("AppointmentBookingPage: _bookAppointment - Transaction started.");
+//         DocumentSnapshot slotDoc = await transaction.get(slotRef);
+//         if (!slotDoc.exists) {
+//           print("AppointmentBookingPage: _bookAppointment - Transaction: Slot ${slotRef.path} does not exist.");
+//           throw Exception("Selected time slot no longer exists.");
+//         }
+//         var slotData = slotDoc.data() as Map<String, dynamic>;
+//          print("AppointmentBookingPage: _bookAppointment - Transaction: Slot data: $slotData");
+//         if (slotData['isBooked'] == true) {
+//           print("AppointmentBookingPage: _bookAppointment - Transaction: Slot ${slotRef.path} is already booked.");
+//           throw Exception("This time slot was just booked. Please select another.");
+//         }
+
+//         Map<String, dynamic> appointmentData = {
+//           'appointmentId': appointmentRef.id,
+//           'specialtyId': _selectedDoctor!.specialtyId, // Will be empty if not in Firestore doc
+//           'specialtyName': _selectedDoctor!.specialtyName,
+//           'doctorId': _selectedDoctor!.id,
+//           'doctorName': _selectedDoctor!.name,
+//           'hospitalId': _selectedHospitalAffiliation!.hospitalId,
+//           'hospitalName': _selectedHospitalAffiliation!.hospitalName,
+//           'appointmentStartTime': Timestamp.fromDate(_selectedSlot!.startTime),
+//           'appointmentEndTime': Timestamp.fromDate(_selectedSlot!.endTime),
+//           'patientName': _patientNameController.text.trim(),
+//           'patientContact': _patientContactController.text.trim(),
+//           'patientUid': currentUser.uid,
+//           'status': 'confirmed',
+//           'bookedAt': FieldValue.serverTimestamp(),
+//           'slotId': _selectedSlot!.slotId,
+//         };
+//         print("AppointmentBookingPage: _bookAppointment - Transaction: Setting appointment data: $appointmentData");
+//         transaction.set(appointmentRef, appointmentData);
+
+//         Map<String, dynamic> slotUpdateData = {
+//           'isBooked': true,
+//           'bookedByPatientId': currentUser.uid,
+//           'appointmentId': appointmentRef.id,
+//         };
+//         print("AppointmentBookingPage: _bookAppointment - Transaction: Updating slot ${slotRef.path} with: $slotUpdateData");
+//         transaction.update(slotRef, slotUpdateData);
+//         print("AppointmentBookingPage: _bookAppointment - Transaction completed successfully.");
+//       });
+
+//       _showFeedback('Appointment Booked Successfully!', isError: false);
+//       print("AppointmentBookingPage: _bookAppointment - Appointment booked successfully.");
+
+
+//       if (!mounted) return;
+//       setState(() {
+//         _searchController.clear();
+//         _searchTerm = "";
+//         _selectedSpecialty = null;
+//         _clearDoctorAndBelowSelections();
+//         _formKey.currentState?.reset();
+//         _filterDoctors();
+//       });
+
+//     } catch (e) {
+//       print("AppointmentBookingPage: _bookAppointment - Error booking appointment: $e");
+//       if (mounted) _showError("Failed to book: ${e.toString().replaceFirst("Exception: ", "")}");
+//       if (mounted) _fetchAvailableTimeSlots();
+//     } finally {
+//       if (mounted) setState(() => _isBooking = false);
+//     }
+//   }
+
+//   void _showFeedback(String message, {bool isError = false}) {
+//     if (mounted && context.mounted) {
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(
+//           content: Text(message),
+//           backgroundColor: isError ? Colors.redAccent : Theme.of(context).primaryColor,
+//           duration: const Duration(seconds: 3),
+//         ),
+//       );
+//     }
+//   }
+
+//   void _showError(String message) {
+//     _showFeedback(message, isError: true);
+//   }
+
+//   Future<void> _signOut() async {
+//     print("AppointmentBookingPage: _signOut called");
+//     try {
+//       await _auth.signOut();
+//       if (mounted) {
+//         Navigator.of(context).pushAndRemoveUntil(
+//           MaterialPageRoute(builder: (context) => const RoleLoginPage()),
+//           (Route<dynamic> route) => false,
+//         );
+//       }
+//     } catch (e) {
+//       if (mounted) _showError('Error signing out: $e');
+//       print("AppointmentBookingPage: _signOut error: $e");
+//     }
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     print("AppointmentBookingPage: build method called. isLoadingDoctors: $_isLoadingDoctors, Selected Doctor: ${_selectedDoctor?.name}, Filtered Doctors: ${_filteredDoctors.length}");
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text('Find & Book Appointment'),
+//         actions: [
+//           IconButton(
+//               icon: const Icon(Icons.logout),
+//               tooltip: 'Sign Out',
+//               onPressed: _signOut),
+//         ],
+//       ),
+//       body: Padding(
+//         padding: const EdgeInsets.all(16.0),
+//         child: Form(
+//           key: _formKey,
+//           child: ListView(
+//             children: <Widget>[
+//               TextField(
+//                 controller: _searchController,
+//                 decoration: InputDecoration(
+//                   labelText: 'Search Doctor or Specialty',
+//                   hintText: 'e.g., Dr. Alice or Cardiology',
+//                   prefixIcon: const Icon(Icons.search),
+//                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                   suffixIcon: _searchTerm.isNotEmpty
+//                       ? IconButton(
+//                           icon: const Icon(Icons.clear),
+//                           onPressed: () {
+//                             _searchController.clear();
+//                           },
+//                         )
+//                       : null,
+//                 ),
+//               ),
+//               const SizedBox(height: 16),
+
+//               if (_searchTerm.isEmpty)
+//                 DropdownButtonFormField<Specialty?>(
+//                   decoration: InputDecoration(
+//                       labelText: 'Filter by Specialty (Optional)',
+//                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                   ),
+//                   value: _selectedSpecialty,
+//                   hint: const Text('All Specialties'),
+//                   isExpanded: true,
+//                   items: [
+//                     const DropdownMenuItem<Specialty?>(
+//                       value: null,
+//                       child: Text("All Specialties"),
+//                     ),
+//                     ..._allSpecialties.map((Specialty specialty) => DropdownMenuItem<Specialty?>(
+//                           value: specialty,
+//                           child: Text(specialty.name),
+//                         )),
+//                   ],
+//                   onChanged: _isLoadingSpecialties ? null : _onSpecialtySelected,
+//                 ),
+//               if (_isLoadingSpecialties && _searchTerm.isEmpty)
+//                 const Center(
+//                     child: Padding(
+//                         padding: EdgeInsets.all(8.0),
+//                         child: CircularProgressIndicator())),
+//               const SizedBox(height: 16),
+
+//               Text("Select Doctor", style: Theme.of(context).textTheme.titleMedium),
+//               const SizedBox(height: 8),
+//               _isLoadingDoctors
+//                   ? const Center(child: CircularProgressIndicator())
+//                   : _filteredDoctors.isEmpty
+//                       ? Center(
+//                           child: Padding(
+//                           padding: const EdgeInsets.symmetric(vertical: 16.0),
+//                           child: Text(
+//                              _allDoctors.isEmpty && !_isLoadingSpecialties && !_isLoadingDoctors? "No doctors found." // Initial state before/during load
+//                             : "No doctors found matching your criteria.", // After load, if filter yields none
+//                           style: TextStyle(color: Colors.grey[600]),),
+//                         ))
+//                       : DropdownButtonFormField<Doctor>(
+//                           decoration: InputDecoration(
+//                             labelText: 'Select Doctor',
+//                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                           ),
+//                           value: _selectedDoctor,
+//                           hint: const Text('Choose a doctor'),
+//                           isExpanded: true,
+//                           items: _filteredDoctors.map((Doctor doctor) {
+//                             return DropdownMenuItem<Doctor>(
+//                                 value: doctor,
+//                                 child: Text("${doctor.name} (${doctor.specialtyName})"));
+//                           }).toList(),
+//                           onChanged: _onDoctorSelected,
+//                           validator: (value) => value == null ? 'Please select a doctor' : null,
+//                         ),
+//               const SizedBox(height: 16),
+
+//               if (_selectedDoctor != null && _hospitalAffiliations.isNotEmpty)
+//                 DropdownButtonFormField<HospitalAffiliation>(
+//                   decoration: InputDecoration(
+//                     labelText: 'Select Hospital/Clinic',
+//                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                   ),
+//                   value: _selectedHospitalAffiliation,
+//                   hint: const Text('Choose a hospital or clinic'),
+//                   isExpanded: true,
+//                   items: _hospitalAffiliations.map((HospitalAffiliation aff) {
+//                     return DropdownMenuItem<HospitalAffiliation>(
+//                         value: aff, child: Text(aff.hospitalName));
+//                   }).toList(),
+//                   onChanged: _onHospitalSelected,
+//                   validator: (value) => value == null ? 'Please select a hospital/clinic' : null,
+//                 ),
+//               if (_selectedDoctor != null && _hospitalAffiliations.isEmpty)
+//                 Padding(
+//                   padding: const EdgeInsets.symmetric(vertical: 8.0),
+//                   child: Text("This doctor has no listed hospital affiliations.", style: TextStyle(color: Colors.orange.shade700)),
+//                 ),
+//               const SizedBox(height: 16),
+
+//               TextFormField(
+//                 decoration: InputDecoration(
+//                   labelText: 'Select Date',
+//                   hintText: _selectedDoctor == null || _selectedHospitalAffiliation == null
+//                       ? 'Select doctor & hospital first'
+//                       : 'Tap to choose a date',
+//                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                   suffixIcon: Icon(Icons.calendar_today,
+//                       color: Theme.of(context).primaryColorDark),
+//                 ),
+//                 readOnly: true,
+//                 controller: TextEditingController(
+//                   text: _selectedDate == null
+//                       ? ''
+//                       : DateFormat.yMMMd().format(_selectedDate!),
+//                 ),
+//                 onTap: _selectedDoctor == null || _selectedHospitalAffiliation == null
+//                     ? null : () => _selectDate(context),
+//                 validator: (value) => _selectedDate == null ? 'Please select a date' : null,
+//               ),
+//               const SizedBox(height: 16),
+
+//               if (_selectedDate != null && _selectedDoctor != null && _selectedHospitalAffiliation != null)
+//                 DropdownButtonFormField<AvailableSlot>(
+//                   decoration: InputDecoration(
+//                     labelText: 'Select Time Slot',
+//                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                     enabled: !_isLoadingTimeSlots && _availableTimeSlots.isNotEmpty,
+//                   ),
+//                   value: _selectedSlot,
+//                   hint: _isLoadingTimeSlots
+//                       ? const Text('Loading slots...')
+//                       : _availableTimeSlots.isEmpty
+//                           ? Text('No slots available for ${DateFormat.yMMMd().format(_selectedDate!)}')
+//                           : const Text('Choose a time slot'),
+//                   isExpanded: true,
+//                   items: _availableTimeSlots.map((AvailableSlot slot) {
+//                     return DropdownMenuItem<AvailableSlot>(
+//                         value: slot, child: Text(slot.displayTime));
+//                   }).toList(),
+//                   onChanged: _isLoadingTimeSlots || _availableTimeSlots.isEmpty
+//                       ? null
+//                       : (AvailableSlot? newValue) => setState(() => _selectedSlot = newValue),
+//                   validator: (value) => value == null ? 'Please select a time slot' : null,
+//                 ),
+//               if (_isLoadingTimeSlots && _selectedDate != null && _selectedDoctor != null && _selectedHospitalAffiliation != null)
+//                 const Center(
+//                     child: Padding(
+//                         padding: EdgeInsets.all(8.0),
+//                         child: CircularProgressIndicator())),
+//               const SizedBox(height: 20),
+
+//               TextFormField(
+//                 controller: _patientNameController,
+//                 decoration: InputDecoration(
+//                     labelText: 'Your Full Name',
+//                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                     prefixIcon: const Icon(Icons.person_outline)),
+//                 validator: (value) => (value == null || value.isEmpty) ? 'Please enter your name' : null,
+//                 textInputAction: TextInputAction.next,
+//               ),
+//               const SizedBox(height: 16),
+//               TextFormField(
+//                 controller: _patientContactController,
+//                 decoration: InputDecoration(
+//                     labelText: 'Your Contact Number',
+//                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+//                     prefixIcon: const Icon(Icons.phone_outlined)),
+//                 keyboardType: TextInputType.phone,
+//                 validator: (value) {
+//                   if (value == null || value.isEmpty) return 'Please enter contact number';
+//                   if (!RegExp(r'^[0-9\s+-]{7,}$').hasMatch(value)) return 'Please enter a valid phone number';
+//                   return null;
+//                 },
+//                 textInputAction: TextInputAction.done,
+//               ),
+//               const SizedBox(height: 30),
+
+//               ElevatedButton(
+//                 style: ElevatedButton.styleFrom(
+//                   padding: const EdgeInsets.symmetric(vertical: 16.0),
+//                   backgroundColor: Theme.of(context).primaryColor,
+//                   foregroundColor: Colors.white,
+//                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+//                 ),
+//                 onPressed: _isBooking ? null : _bookAppointment,
+//                 child: _isBooking
+//                     ? const SizedBox(
+//                         height: 24,
+//                         width: 24,
+//                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3.0))
+//                     : const Text('Book Appointment', style: TextStyle(fontSize: 16)),
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:medi_sync_plus_app/pages/login_page/role_login_page.dart'; // Assuming this is your login page
 
-// --- Data Models (Adjusted) ---
+// --- Data Models (Keep as they are) ---
 class Specialty {
-  final String id; // e.g., "cardiology", "dentistry"
-  final String name; // e.g., "Cardiology", "Dentistry"
+  final String id;
+  final String name;
   Specialty({required this.id, required this.name});
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Specialty && runtimeType == other.runtimeType && id == other.id;
-
-  @override
-  int get hashCode => id.hashCode;
-
-  @override
-  String toString() => 'Specialty(id: $id, name: $name)';
+  @override bool operator ==(Object other) => identical(this, other) || other is Specialty && runtimeType == other.runtimeType && id == other.id;
+  @override int get hashCode => id.hashCode;
+  @override String toString() => 'Specialty(id: $id, name: $name)';
 }
 
 class Doctor {
   final String id;
   final String name;
-  final String specialtyId; // e.g., "cardiology"
-  final String specialtyName; // e.g., "Cardiology"
+  final String specialtyId;
+  final String specialtyName;
   final List<HospitalAffiliation> hospitalAffiliations;
-  // weeklyAvailability is removed, slots are fetched directly
-
-  Doctor({
-    required this.id,
-    required this.name,
-    required this.specialtyId,
-    required this.specialtyName,
-    required this.hospitalAffiliations,
-  });
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Doctor && runtimeType == other.runtimeType && id == other.id;
-
-  @override
-  int get hashCode => id.hashCode;
+  Doctor({ required this.id, required this.name, required this.specialtyId, required this.specialtyName, required this.hospitalAffiliations });
+  @override bool operator ==(Object other) => identical(this, other) || other is Doctor && runtimeType == other.runtimeType && id == other.id;
+  @override int get hashCode => id.hashCode;
+  @override String toString() => 'Doctor(id: $id, name: $name, specialtyId: $specialtyId, specialtyName: $specialtyName, affiliations: ${hospitalAffiliations.length})';
 }
 
 class HospitalAffiliation {
   final String hospitalId;
   final String hospitalName;
   HospitalAffiliation({required this.hospitalId, required this.hospitalName});
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is HospitalAffiliation &&
-          runtimeType == other.runtimeType &&
-          hospitalId == other.hospitalId;
-
-  @override
-  int get hashCode => hospitalId.hashCode;
+  @override bool operator ==(Object other) => identical(this, other) || other is HospitalAffiliation && runtimeType == other.runtimeType && hospitalId == other.hospitalId;
+  @override int get hashCode => hospitalId.hashCode;
+  @override String toString() => 'HospitalAffiliation(id: $hospitalId, name: $hospitalName)';
 }
 
-// Represents a fetched available slot for UI display
 class AvailableSlot {
-  final String slotId; // Document ID of the slot in the subcollection
+  final String slotId;
   final DateTime startTime;
   final DateTime endTime;
-  final String displayTime; // e.g., "09:00 AM - 09:30 AM"
-
-  AvailableSlot({
-    required this.slotId,
-    required this.startTime,
-    required this.endTime,
-    required this.displayTime,
-  });
-
-   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AvailableSlot &&
-          runtimeType == other.runtimeType &&
-          slotId == other.slotId;
-
-  @override
-  int get hashCode => slotId.hashCode;
+  final String displayTime;
+  AvailableSlot({ required this.slotId, required this.startTime, required this.endTime, required this.displayTime });
+  @override bool operator ==(Object other) => identical(this, other) || other is AvailableSlot && runtimeType == other.runtimeType && slotId == other.slotId;
+  @override int get hashCode => slotId.hashCode;
+  @override String toString() => 'AvailableSlot(id: $slotId, displayTime: $displayTime)';
 }
 // --- End Data Models ---
 
@@ -1205,7 +2923,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   Doctor? _selectedDoctor;
   HospitalAffiliation? _selectedHospitalAffiliation;
   DateTime? _selectedDate;
-  AvailableSlot? _selectedSlot; // Changed from String to AvailableSlot
+  AvailableSlot? _selectedSlot;
 
   final TextEditingController _patientNameController = TextEditingController();
   final TextEditingController _patientContactController = TextEditingController();
@@ -1214,7 +2932,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   List<Doctor> _allDoctors = [];
   List<Doctor> _filteredDoctors = [];
   List<HospitalAffiliation> _hospitalAffiliations = [];
-  List<AvailableSlot> _availableTimeSlots = []; // Changed from List<String>
+  List<AvailableSlot> _availableTimeSlots = [];
 
   bool _isLoadingSpecialties = true;
   bool _isLoadingDoctors = false;
@@ -1224,6 +2942,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   @override
   void initState() {
     super.initState();
+    print("AppointmentBookingPage: initState called");
     _fetchInitialData();
     _searchController.addListener(() {
       if (!mounted) return;
@@ -1236,6 +2955,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
 
   @override
   void dispose() {
+    print("AppointmentBookingPage: dispose called");
     _searchController.dispose();
     _patientNameController.dispose();
     _patientContactController.dispose();
@@ -1243,168 +2963,213 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   }
 
   Future<void> _fetchInitialData() async {
+    print("AppointmentBookingPage: _fetchInitialData started");
     User? currentUser = _auth.currentUser;
     if (currentUser == null) {
-      print("User not authenticated. Redirecting to login.");
+      print("AppointmentBookingPage: User not authenticated. Redirecting to login.");
       if (mounted) {
         _showError("Please log in to continue.");
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => RoleLoginPage()), // Ensure RoleLoginPage is imported/defined
+          MaterialPageRoute(builder: (context) => const RoleLoginPage()),
           (Route<dynamic> route) => false,
         );
       }
       return;
     }
+    print("AppointmentBookingPage: User ${currentUser.uid} is authenticated.");
 
-    // Prefetch patient name if available from user profile (optional)
-    // if (currentUser.displayName != null && currentUser.displayName!.isNotEmpty) {
-    //   _patientNameController.text = currentUser.displayName!;
-    // }
-    // Fetch from your 'users' or 'patients' collection if you store more details
-    DocumentSnapshot userProfile = await _firestore.collection('users').doc(currentUser.uid).get();
-    if(userProfile.exists && userProfile.data() != null) {
-        var userData = userProfile.data() as Map<String, dynamic>;
-        if(userData.containsKey('fullName') && userData['fullName'] != null) {
-            _patientNameController.text = userData['fullName'];
+    try {
+        DocumentSnapshot userProfile = await _firestore.collection('users').doc(currentUser.uid).get();
+        if(userProfile.exists && userProfile.data() != null) {
+            var userData = userProfile.data() as Map<String, dynamic>;
+            print("AppointmentBookingPage: Fetched user profile data: $userData");
+            if(userData.containsKey('fullName') && userData['fullName'] != null) {
+                _patientNameController.text = userData['fullName'];
+            }
+            if(userData.containsKey('phoneNumber') && userData['phoneNumber'] != null) {
+                _patientContactController.text = userData['phoneNumber'];
+            }
+        } else {
+          print("AppointmentBookingPage: User profile not found or empty for UID: ${currentUser.uid}");
         }
-        if(userData.containsKey('phoneNumber') && userData['phoneNumber'] != null) {
-            _patientContactController.text = userData['phoneNumber'];
-        }
+    } catch (e) {
+        print("AppointmentBookingPage: Error fetching user profile: $e");
     }
-
 
     await _fetchSpecialties();
     await _fetchAllDoctors();
+    print("AppointmentBookingPage: _fetchInitialData completed");
   }
 
   Future<void> _fetchSpecialties() async {
+    // ... (keep this method as it was in the previous "full updated code")
     if (!mounted) return;
     setState(() => _isLoadingSpecialties = true);
+    print("AppointmentBookingPage: _fetchSpecialties - Fetching from 'specialties' collection...");
     try {
-      print("Fetching specialties from Firestore 'specialties' collection...");
       QuerySnapshot snapshot =
-          await _firestore.collection('specialties').orderBy('name').get(); // Assuming you have a 'name' field for ordering
+          await _firestore.collection('specialties').orderBy('name').get();
       if (!mounted) return;
 
       if (snapshot.docs.isEmpty) {
-        print("No specialties found in Firestore.");
-        if (mounted) _showError("No specialties available in the database.");
-        setState(() {
-          _allSpecialties = [];
-        });
+        print("AppointmentBookingPage: _fetchSpecialties - No specialties found in Firestore.");
+        if (mounted) _showError("No specialties available.");
+         setState(() => _allSpecialties = []);
         return;
       }
 
       _allSpecialties = snapshot.docs.map((doc) {
         var data = doc.data() as Map<String, dynamic>;
-        // The document ID IS the specialty ID (e.g., "cardiology")
-        // The document has a field 'name' (e.g., "Cardiology")
+        print("AppointmentBookingPage: _fetchSpecialties - Raw specialty data for doc ID ${doc.id}: $data");
         return Specialty(id: doc.id, name: data['name'] as String? ?? "Unnamed Specialty");
       }).toList();
 
-      print("Fetched specialties: ${_allSpecialties.map((s) => '${s.id}: ${s.name}').toList()}");
+      print("AppointmentBookingPage: _fetchSpecialties - Fetched and Mapped specialties: ${_allSpecialties.map((s) => '${s.id}: ${s.name}').join(', ')}");
     } catch (e, stackTrace) {
-      print("Error fetching specialties: $e\n$stackTrace");
-      if (mounted) _showError("Could not load specialties. Please try again.");
+      print("AppointmentBookingPage: _fetchSpecialties - Error fetching specialties: $e\n$stackTrace");
+      if (mounted) _showError("Could not load specialties.");
     } finally {
       if (mounted) {
         setState(() => _isLoadingSpecialties = false);
-        _filterDoctors(); // Initial filter
       }
     }
   }
 
   Future<void> _fetchAllDoctors() async {
+    // ... (keep this method as it was in the previous "full updated code" - the one that fetches ALL doctors temporarily)
     if (!mounted) return;
+    print("AppointmentBookingPage: _fetchAllDoctors - Fetching doctors...");
     setState(() {
       _isLoadingDoctors = true;
       _allDoctors = [];
       _filteredDoctors = [];
     });
     try {
-      QuerySnapshot doctorSnapshot = await _firestore.collection('doctors').where('isEnabled', isEqualTo: true).get();
+      QuerySnapshot doctorSnapshot = await _firestore.collection('doctors').get(); // TEMP: Fetch ALL doctors
+      print("AppointmentBookingPage: _fetchAllDoctors - TEMP TEST: Fetched ALL doctors (no 'isEnabled' filter). Count: ${doctorSnapshot.docs.length}");
+
       if (!mounted) return;
 
       _allDoctors = await Future.wait(doctorSnapshot.docs.map((doc) async {
         var data = doc.data() as Map<String, dynamic>;
+        print("AppointmentBookingPage: _fetchAllDoctors - Raw doctor data for doc ID ${doc.id}: $data");
+
         List<dynamic> affiliationsData = data['affiliatedHospitals'] ?? [];
-        List<HospitalAffiliation> affiliations = affiliationsData.map((aff) {
-          return HospitalAffiliation(
-              hospitalId: aff['hospitalId'] as String,
-              hospitalName: aff['hospitalName'] as String);
-        }).toList();
+        print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - raw affiliationsData: $affiliationsData (Type: ${affiliationsData.runtimeType})");
+        List<HospitalAffiliation> affiliations = [];
+        if (affiliationsData is List) {
+            affiliations = affiliationsData.map((aff) {
+              if (aff is Map<String, dynamic>) {
+                  print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - mapping affiliation map: $aff");
+                  return HospitalAffiliation(
+                      hospitalId: aff['hospitalId'] as String? ?? 'unknown_hosp_id_${doc.id}_${affiliations.length}',
+                      hospitalName: aff['hospitalName'] as String? ?? 'Unknown Hospital',
+                  );
+              }
+              print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - affiliation item is NOT a map: $aff. Type: ${aff.runtimeType}");
+              return HospitalAffiliation(hospitalId: 'error_hosp_id_${doc.id}_${affiliations.length}', hospitalName: 'Error Hospital Structure');
+            }).toList();
+        } else {
+             print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - affiliatedHospitals field is NOT a List. Actual type: ${affiliationsData.runtimeType}");
+        }
 
-        String specialtyId = data['specialtyId'] as String? ?? ""; // This is the doc ID from 'specialties'
-        String specialtyName = "Unknown Specialty";
+        String specialtyIdFromDoc = data['specialtyId'] as String? ?? "";
+        print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Attempting to get 'specialtyId' from Firestore: '$specialtyIdFromDoc'");
+        if (specialtyIdFromDoc.isEmpty) {
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            print("APPOINTMENT_BOOKING_PAGE WARNING: Doctor ${doc.id} is MISSING 'specialtyId' field in Firestore.");
+            print("Please add a 'specialtyId' (string) field to this doctor document,");
+            print("with a value matching a document ID from your 'specialties' collection (e.g., 'cardiology').");
+            print("The existing 'specializations' array is NOT used for this primary specialty lookup.");
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        }
 
-        if (specialtyId.isNotEmpty) {
-          // Find in already fetched specialties
+        String resolvedSpecialtyName = "Unknown Specialty";
+        if (specialtyIdFromDoc.isNotEmpty) {
           final foundSpecialty = _allSpecialties.firstWhere(
-            (s) => s.id == specialtyId,
-            orElse: () => Specialty(id: specialtyId, name: "Loading...") // Placeholder
+            (s) => s.id == specialtyIdFromDoc,
+            orElse: () {
+              print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - specialtyId '$specialtyIdFromDoc' NOT FOUND in _allSpecialties. _allSpecialties has ${_allSpecialties.length} items: ${_allSpecialties.map((sp) => sp.id).join(', ')}");
+              return Specialty(id: specialtyIdFromDoc, name: "Loading...");
+            }
           );
           if (foundSpecialty.name != "Loading...") {
-            specialtyName = foundSpecialty.name;
+            resolvedSpecialtyName = foundSpecialty.name;
           } else {
-            // Fallback: Fetch directly if not found (shouldn't happen if _fetchSpecialties ran first)
+            print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - specialtyId '$specialtyIdFromDoc' - Attempting fallback direct fetch for specialty name because it was 'Loading...'.");
             try {
-                DocumentSnapshot specialtyDoc = await _firestore.collection('specialties').doc(specialtyId).get();
+                DocumentSnapshot specialtyDoc = await _firestore.collection('specialties').doc(specialtyIdFromDoc).get();
                 if (specialtyDoc.exists) {
-                specialtyName = (specialtyDoc.data() as Map<String, dynamic>)['name'] as String? ?? "Unnamed Specialty";
+                  resolvedSpecialtyName = (specialtyDoc.data() as Map<String, dynamic>)['name'] as String? ?? "Unnamed Specialty (Fallback)";
+                   print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Fallback fetch successful for '$specialtyIdFromDoc': $resolvedSpecialtyName");
+                } else {
+                   print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Fallback fetch: specialty document '$specialtyIdFromDoc' does NOT exist.");
                 }
             } catch (e) {
-                print("Error fetching specialty details for doctor ${doc.id}, specialtyId ${specialtyId}: $e");
+                print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Error during fallback specialty fetch for '$specialtyIdFromDoc': $e");
             }
           }
         }
+        print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Resolved specialtyName: '$resolvedSpecialtyName', Original specialtyId from doc: '$specialtyIdFromDoc'");
 
-        return Doctor(
+        Doctor mappedDoctor = Doctor(
           id: doc.id,
-          name: data['fullName'] as String? ?? 'N/A', // Use fullName
-          specialtyId: specialtyId,
-          specialtyName: specialtyName,
+          name: data['fullName'] as String? ?? 'N/A Doctor Name',
+          specialtyId: specialtyIdFromDoc,
+          specialtyName: resolvedSpecialtyName,
           hospitalAffiliations: affiliations,
         );
+        print("AppointmentBookingPage: _fetchAllDoctors - Doctor ${doc.id} - Mapped Doctor object: $mappedDoctor");
+        return mappedDoctor;
       }).toList());
 
+      print("AppointmentBookingPage: _fetchAllDoctors - Total doctors fetched and mapped: ${_allDoctors.length}");
       _filterDoctors();
     } catch (e, s) {
-      print("Error fetching all doctors: $e\n$s");
+      print("AppointmentBookingPage: _fetchAllDoctors - Error fetching all doctors: $e\n$s");
       if (mounted) _showError("Could not load doctor list.");
     }
     if (mounted) setState(() => _isLoadingDoctors = false);
   }
 
   void _filterDoctors() {
-    if (!mounted) return;
+    // ... (keep this method as it was in the previous "full updated code")
+     if (!mounted) return;
+    List<Doctor> doctorsToConsider = _allDoctors;
+
     List<Doctor> tempFiltered;
     if (_searchTerm.isEmpty && _selectedSpecialty == null) {
-      tempFiltered = List.from(_allDoctors);
+      tempFiltered = List.from(doctorsToConsider);
     } else {
-      tempFiltered = _allDoctors.where((doctor) {
+      tempFiltered = doctorsToConsider.where((doctor) {
         bool matchesSearchTerm = _searchTerm.isEmpty ||
             doctor.name.toLowerCase().contains(_searchTerm.toLowerCase()) ||
             doctor.specialtyName.toLowerCase().contains(_searchTerm.toLowerCase());
-        
         bool matchesSpecialty = _selectedSpecialty == null ||
             doctor.specialtyId == _selectedSpecialty!.id;
-        
         return matchesSearchTerm && matchesSpecialty;
       }).toList();
     }
-
-    // If current selected doctor is no longer in filtered list, clear it
-    if (_selectedDoctor != null && !tempFiltered.any((d) => d.id == _selectedDoctor!.id)) {
-        _clearDoctorAndBelowSelections();
+    print("AppointmentBookingPage: _filterDoctors - Search: '$_searchTerm', Selected Specialty ID: '${_selectedSpecialty?.id}'. Input doctors: ${doctorsToConsider.length}, Filtered count: ${tempFiltered.length}");
+    if (tempFiltered.isNotEmpty) {
+        print("AppointmentBookingPage: _filterDoctors - First filtered doctor: ${tempFiltered.first}");
+    } else if (doctorsToConsider.isNotEmpty) {
+        print("AppointmentBookingPage: _filterDoctors - No doctors match criteria. First available doctor for reference: ${doctorsToConsider.first}");
     }
 
+    if (_selectedDoctor != null && !tempFiltered.any((d) => d.id == _selectedDoctor!.id)) {
+        print("AppointmentBookingPage: _filterDoctors - Current selected doctor ${_selectedDoctor!.id} no longer in filtered list. Clearing doctor selection.");
+        _clearDoctorAndBelowSelections();
+    }
     setState(() {
       _filteredDoctors = tempFiltered;
     });
   }
 
   void _clearDoctorAndBelowSelections() {
+    // ... (keep this method as it was)
     if (!mounted) return;
+    print("AppointmentBookingPage: _clearDoctorAndBelowSelections called.");
     setState(() {
       _selectedDoctor = null;
       _hospitalAffiliations = [];
@@ -1414,7 +3179,9 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   }
 
   void _clearDateAndBelowSelections() {
-    if (!mounted) return;
+    // ... (keep this method as it was)
+     if (!mounted) return;
+     print("AppointmentBookingPage: _clearDateAndBelowSelections called.");
     setState(() {
       _selectedDate = null;
       _availableTimeSlots = [];
@@ -1423,10 +3190,12 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   }
 
   void _onSpecialtySelected(Specialty? specialty) {
+    // ... (keep this method as it was)
     if (!mounted) return;
+    print("AppointmentBookingPage: _onSpecialtySelected - ${specialty?.id ?? 'All'}");
     setState(() {
       _selectedSpecialty = specialty;
-      _searchController.clear(); // Clear search when specialty filter is used
+      _searchController.clear();
       _searchTerm = "";
       _clearDoctorAndBelowSelections();
       _filterDoctors();
@@ -1434,18 +3203,22 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   }
 
   void _onDoctorSelected(Doctor? doctor) {
+    // ... (keep this method as it was)
     if (!mounted) return;
+     print("AppointmentBookingPage: _onDoctorSelected - ${doctor?.id ?? 'None'}");
     setState(() {
       _selectedDoctor = doctor;
       _hospitalAffiliations = doctor?.hospitalAffiliations ?? [];
-      // Auto-select first hospital if available, or null
       _selectedHospitalAffiliation = _hospitalAffiliations.isNotEmpty ? _hospitalAffiliations.first : null;
+      print("AppointmentBookingPage: _onDoctorSelected - Selected hospital affiliation: ${_selectedHospitalAffiliation?.hospitalName}");
       _clearDateAndBelowSelections();
     });
   }
 
   void _onHospitalSelected(HospitalAffiliation? hospitalAffiliation) {
+    // ... (keep this method as it was)
     if (!mounted) return;
+    print("AppointmentBookingPage: _onHospitalSelected - ${hospitalAffiliation?.hospitalId ?? 'None'}");
     setState(() {
       _selectedHospitalAffiliation = hospitalAffiliation;
       _clearDateAndBelowSelections();
@@ -1453,36 +3226,57 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    // ... (keep this method as it was)
     if (_selectedDoctor == null || _selectedHospitalAffiliation == null) {
       _showError("Please select a doctor and hospital first.");
       return;
     }
-
+    print("AppointmentBookingPage: _selectDate - Opening date picker.");
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now().add(const Duration(days:1)), // Start from tomorrow
-      firstDate: DateTime.now().add(const Duration(days:1)), // Can't book for today
-      lastDate: DateTime.now().add(const Duration(days: 90)), // Book up to 90 days ahead
+      initialDate: _selectedDate ?? DateTime.now().add(const Duration(days:1)),
+      firstDate: DateTime.now().add(const Duration(days:1)),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
     );
 
     if (picked != null && picked != _selectedDate) {
       if (!mounted) return;
+      print("AppointmentBookingPage: _selectDate - Date picked: $picked");
       setState(() {
         _selectedDate = picked;
-        _selectedSlot = null; // Reset selected slot
+        _selectedSlot = null;
         _fetchAvailableTimeSlots();
       });
+    } else {
+      print("AppointmentBookingPage: _selectDate - Date picker cancelled or same date picked.");
     }
   }
 
+  // =======================================================================
+  // MODIFIED _fetchAvailableTimeSlots with extensive logging and test queries
+  // =======================================================================
   Future<void> _fetchAvailableTimeSlots() async {
+    print("AppointmentBookingPage: _fetchAvailableTimeSlots - Function CALLED.");
+    print("AppointmentBookingPage: _fetchAvailableTimeSlots - Current Selected Doctor ID: ${_selectedDoctor?.id}");
+    print("AppointmentBookingPage: _fetchAvailableTimeSlots - Current Selected Hospital ID: ${_selectedHospitalAffiliation?.hospitalId}");
+    print("AppointmentBookingPage: _fetchAvailableTimeSlots - Current Selected Date: $_selectedDate");
+
+
     if (_selectedDoctor == null ||
         _selectedDate == null ||
         _selectedHospitalAffiliation == null) {
       if (mounted) setState(() => _availableTimeSlots = []);
+      print("AppointmentBookingPage: _fetchAvailableTimeSlots - ABORTING: Prerequisites not met (Doctor, Hospital, or Date is null).");
       return;
     }
     if (!mounted) return;
+
+    final String doctorId = _selectedDoctor!.id;
+    final String hospitalIdQuery = _selectedHospitalAffiliation!.hospitalId;
+    final DateTime dateQuery = _selectedDate!;
+
+    print("AppointmentBookingPage: _fetchAvailableTimeSlots - PREPARING to fetch for Dr: $doctorId, Hosp: $hospitalIdQuery, Date: $dateQuery");
+
     setState(() {
       _isLoadingTimeSlots = true;
       _availableTimeSlots = [];
@@ -1490,81 +3284,174 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     });
 
     try {
-      // Define start and end of the selected day for Firestore query
-      DateTime startOfDay = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 0, 0, 0);
-      DateTime endOfDay = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 23, 59, 59);
+      DateTime startOfDay = DateTime(dateQuery.year, dateQuery.month, dateQuery.day, 0, 0, 0, 0, 0); // Explicitly set milliseconds and microseconds to 0
+      DateTime endOfDay = DateTime(dateQuery.year, dateQuery.month, dateQuery.day, 23, 59, 59, 999, 999); // End of the day
 
       Timestamp startTimestamp = Timestamp.fromDate(startOfDay);
       Timestamp endTimestamp = Timestamp.fromDate(endOfDay);
 
-      print("Fetching slots for Dr: ${_selectedDoctor!.id}, Hosp: ${_selectedHospitalAffiliation!.hospitalId}, Date: $_selectedDate");
-      print("Querying slots from ${startOfDay.toIso8601String()} to ${endOfDay.toIso8601String()}");
+      print("AppointmentBookingPage: _fetchAvailableTimeSlots - Calculated local startOfDay: $startOfDay (ISO: ${startOfDay.toIso8601String()})");
+      print("AppointmentBookingPage: _fetchAvailableTimeSlots - Calculated local endOfDay: $endOfDay (ISO: ${endOfDay.toIso8601String()})");
+      print("AppointmentBookingPage: _fetchAvailableTimeSlots - Converted startTimestamp (UTC fromDate): ${startTimestamp.toDate()}");
+      print("AppointmentBookingPage: _fetchAvailableTimeSlots - Converted endTimestamp (UTC fromDate): ${endTimestamp.toDate()}");
+      print("------------------------------------------------------------------------------------");
+      print("AppointmentBookingPage: _fetchAvailableTimeSlots - USING MAIN QUERY");
+      print("------------------------------------------------------------------------------------");
 
+
+      // --- MAIN QUERY ---
       QuerySnapshot slotSnapshot = await _firestore
           .collection('doctors')
-          .doc(_selectedDoctor!.id)
+          .doc(doctorId)
           .collection('availabilitySlots')
-          .where('hospitalId', isEqualTo: _selectedHospitalAffiliation!.hospitalId)
+          .where('hospitalId', isEqualTo: hospitalIdQuery)
           .where('startTime', isGreaterThanOrEqualTo: startTimestamp)
           .where('startTime', isLessThanOrEqualTo: endTimestamp)
           .where('isBooked', isEqualTo: false)
-          .orderBy('startTime') // Important for displaying in order
+          .orderBy('startTime')
           .get();
+
+
+      // --- TEST QUERIES (Uncomment ONE AT A TIME to debug) ---
+
+      // // --- TEST A: Any slots for doctor & hospital (IGNORE DATE & BOOKED STATUS) ---
+      // print("------------------------------------------------------------------------------------");
+      // print("AppointmentBookingPage: _fetchAvailableTimeSlots - EXECUTING TEST A QUERY");
+      // print("------------------------------------------------------------------------------------");
+      // QuerySnapshot slotSnapshot = await _firestore
+      //     .collection('doctors')
+      //     .doc(doctorId)
+      //     .collection('availabilitySlots')
+      //     .where('hospitalId', isEqualTo: hospitalIdQuery)
+      //     .orderBy('startTime')
+      //     .limit(10) // Limit results for testing
+      //     .get();
+
+
+      // // --- TEST B: Unbooked slots for doctor & hospital (IGNORE DATE) ---
+      // print("------------------------------------------------------------------------------------");
+      // print("AppointmentBookingPage: _fetchAvailableTimeSlots - EXECUTING TEST B QUERY");
+      // print("------------------------------------------------------------------------------------");
+      // QuerySnapshot slotSnapshot = await _firestore
+      //     .collection('doctors')
+      //     .doc(doctorId)
+      //     .collection('availabilitySlots')
+      //     .where('hospitalId', isEqualTo: hospitalIdQuery)
+      //     .where('isBooked', isEqualTo: false)
+      //     .orderBy('startTime')
+      //     .limit(10)
+      //     .get();
+
+
+      // // --- TEST C: Slots by date for doctor & hospital (IGNORE BOOKED STATUS) ---
+      // print("------------------------------------------------------------------------------------");
+      // print("AppointmentBookingPage: _fetchAvailableTimeSlots - EXECUTING TEST C QUERY");
+      // print("------------------------------------------------------------------------------------");
+      // QuerySnapshot slotSnapshot = await _firestore
+      //     .collection('doctors')
+      //     .doc(doctorId)
+      //     .collection('availabilitySlots')
+      //     .where('hospitalId', isEqualTo: hospitalIdQuery)
+      //     .where('startTime', isGreaterThanOrEqualTo: startTimestamp)
+      //     .where('startTime', isLessThanOrEqualTo: endTimestamp)
+      //     .orderBy('startTime')
+      //     .limit(10)
+      //     .get();
+
+      // --- End Test Queries ---
 
       if (!mounted) return;
 
       if (slotSnapshot.docs.isEmpty) {
-        print("No available slots found matching criteria.");
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        print("AppointmentBookingPage: _fetchAvailableTimeSlots - QUERY RESULT: NO SLOTS FOUND matching the current query criteria.");
+        print("    Doctor ID: $doctorId");
+        print("    Hospital ID for Query: $hospitalIdQuery");
+        print("    Date for Query: $dateQuery");
+        print("    Query Start Timestamp (UTC): ${startTimestamp.toDate()}");
+        print("    Query End Timestamp (UTC): ${endTimestamp.toDate()}");
+        print("    (If using main query, also filtered for isBooked: false)");
+        print("    COMMON CHECKS:");
+        print("    1. Verify 'hospitalId' in slot documents EXACTLY matches '$hospitalIdQuery'.");
+        print("    2. Verify 'startTime' (Timestamp type) in slot documents falls BETWEEN the Query Start/End Timestamps (consider UTC).");
+        print("    3. Verify 'isBooked' is 'false' (boolean) in slot documents (for main query).");
+        print("    4. Check Firestore Security Rules for 'doctors/$doctorId/availabilitySlots'.");
+        print("    5. Check for Firestore Indexing errors in Firebase Console or Flutter logs for this query.");
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+
+      } else {
+        print("AppointmentBookingPage: _fetchAvailableTimeSlots - QUERY RESULT: Found ${slotSnapshot.docs.length} raw slot documents.");
       }
 
       _availableTimeSlots = slotSnapshot.docs.map((doc) {
         var data = doc.data() as Map<String, dynamic>;
-        Timestamp startTimeStamp = data['startTime'] as Timestamp;
-        Timestamp endTimeStamp = data['endTime'] as Timestamp;
-        DateTime sTime = startTimeStamp.toDate();
-        DateTime eTime = endTimeStamp.toDate();
+        print("AppointmentBookingPage: _fetchAvailableTimeSlots - Mapping slot doc ${doc.id}, Raw Data: $data");
+
+        Timestamp? firestoreStartTime = data['startTime'] as Timestamp?;
+        Timestamp? firestoreEndTime = data['endTime'] as Timestamp?;
+        bool isSlotBooked = data['isBooked'] as bool? ?? true; // Default to booked if missing, to be safe
+        String slotHospitalId = data['hospitalId'] as String? ?? 'NO_HOSPITAL_ID_IN_SLOT';
+
+        if (firestoreStartTime == null || firestoreEndTime == null) {
+          print("      >> WARNING: Slot ${doc.id} is missing startTime or endTime. Skipping.");
+          return null; // Will be filtered out by .whereType
+        }
+        DateTime sTime = firestoreStartTime.toDate();
+        DateTime eTime = firestoreEndTime.toDate();
+
+        print("      >> Slot ${doc.id}: Start (UTC): $sTime, End (UTC): $eTime, isBooked: $isSlotBooked, Slot's HospitalId: '$slotHospitalId'");
 
         return AvailableSlot(
           slotId: doc.id,
           startTime: sTime,
           endTime: eTime,
-          displayTime: "${DateFormat.jm().format(sTime)} - ${DateFormat.jm().format(eTime)}",
+          displayTime: "${DateFormat.jm().format(sTime.toLocal())} - ${DateFormat.jm().format(eTime.toLocal())}", // Display in local time
         );
-      }).toList();
+      }).whereType<AvailableSlot>().toList(); // Filter out any nulls from parsing errors
 
-      print("Fetched ${_availableTimeSlots.length} available slots.");
+      print("AppointmentBookingPage: _fetchAvailableTimeSlots - Mapped ${_availableTimeSlots.length} VALID available slots: ${_availableTimeSlots.map((s)=>s.displayTime).join(', ')}");
 
     } catch (e, s) {
-      print("Error fetching time slots: $e\n$s");
-      if (mounted) _showError("Could not load available time slots.");
+      print("AppointmentBookingPage: _fetchAvailableTimeSlots - Error during fetch/map: $e\n$s");
+      if (mounted) _showError("Could not load time slots. Error: $e");
     } finally {
       if (mounted) setState(() => _isLoadingTimeSlots = false);
     }
   }
+  // =======================================================================
+  // End MODIFIED _fetchAvailableTimeSlots
+  // =======================================================================
+
 
   Future<void> _bookAppointment() async {
+    // ... (keep this method as it was in the previous "full updated code")
     if (!_formKey.currentState!.validate()) {
        _showError("Please fill all required fields correctly.");
+       print("AppointmentBookingPage: _bookAppointment - Form validation failed.");
        return;
     }
     _formKey.currentState!.save();
+     print("AppointmentBookingPage: _bookAppointment - Form validated and saved.");
 
     if (_selectedDoctor == null ||
         _selectedHospitalAffiliation == null ||
         _selectedDate == null ||
         _selectedSlot == null) {
-      _showError("Please make all required selections (Doctor, Hospital, Date, Time).");
+      _showError("Please make all required selections.");
+      print("AppointmentBookingPage: _bookAppointment - Missing selections: Dr: ${_selectedDoctor?.id}, Hosp: ${_selectedHospitalAffiliation?.hospitalId}, Date: $_selectedDate, Slot: ${_selectedSlot?.slotId}");
       return;
     }
     User? currentUser = _auth.currentUser;
     if (currentUser == null) {
-      _showError("You must be logged in to book an appointment.");
-      // Optionally redirect to login
+      _showError("You must be logged in.");
+      print("AppointmentBookingPage: _bookAppointment - Current user is null.");
       return;
     }
 
     if (!mounted) return;
     setState(() => _isBooking = true);
+    print("AppointmentBookingPage: _bookAppointment - Attempting to book for User: ${currentUser.uid}, Doctor: ${_selectedDoctor!.id}, Slot: ${_selectedSlot!.slotId}");
+
 
     final appointmentRef = _firestore.collection('appointments').doc();
     final slotRef = _firestore
@@ -1574,21 +3461,22 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
         .doc(_selectedSlot!.slotId);
 
     try {
-      // Use a Firestore transaction
       await _firestore.runTransaction((transaction) async {
-        // 1. Read the slot to ensure it's still available
+        print("AppointmentBookingPage: _bookAppointment - Transaction started.");
         DocumentSnapshot slotDoc = await transaction.get(slotRef);
         if (!slotDoc.exists) {
+          print("AppointmentBookingPage: _bookAppointment - Transaction: Slot ${slotRef.path} does not exist.");
           throw Exception("Selected time slot no longer exists.");
         }
         var slotData = slotDoc.data() as Map<String, dynamic>;
+         print("AppointmentBookingPage: _bookAppointment - Transaction: Slot data: $slotData");
         if (slotData['isBooked'] == true) {
-          throw Exception("This time slot was just booked by someone else. Please select another.");
+          print("AppointmentBookingPage: _bookAppointment - Transaction: Slot ${slotRef.path} is already booked.");
+          throw Exception("This time slot was just booked. Please select another.");
         }
 
-        // 2. Create the appointment document
-        transaction.set(appointmentRef, {
-          'appointmentId': appointmentRef.id, // Store the ID within the document
+        Map<String, dynamic> appointmentData = {
+          'appointmentId': appointmentRef.id,
           'specialtyId': _selectedDoctor!.specialtyId,
           'specialtyName': _selectedDoctor!.specialtyName,
           'doctorId': _selectedDoctor!.id,
@@ -1600,38 +3488,40 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
           'patientName': _patientNameController.text.trim(),
           'patientContact': _patientContactController.text.trim(),
           'patientUid': currentUser.uid,
-          'status': 'confirmed', // Or 'pending_confirmation' if admin needs to approve
+          'status': 'confirmed',
           'bookedAt': FieldValue.serverTimestamp(),
-          'slotId': _selectedSlot!.slotId, // Link back to the slot
-        });
+          'slotId': _selectedSlot!.slotId,
+        };
+        print("AppointmentBookingPage: _bookAppointment - Transaction: Setting appointment data: $appointmentData");
+        transaction.set(appointmentRef, appointmentData);
 
-        // 3. Update the slot document
-        transaction.update(slotRef, {
+        Map<String, dynamic> slotUpdateData = {
           'isBooked': true,
           'bookedByPatientId': currentUser.uid,
           'appointmentId': appointmentRef.id,
-        });
+        };
+        print("AppointmentBookingPage: _bookAppointment - Transaction: Updating slot ${slotRef.path} with: $slotUpdateData");
+        transaction.update(slotRef, slotUpdateData);
+        print("AppointmentBookingPage: _bookAppointment - Transaction completed successfully.");
       });
 
       _showFeedback('Appointment Booked Successfully!', isError: false);
+      print("AppointmentBookingPage: _bookAppointment - Appointment booked successfully.");
+
 
       if (!mounted) return;
-      // Reset the form and selections
       setState(() {
         _searchController.clear();
         _searchTerm = "";
         _selectedSpecialty = null;
-        _clearDoctorAndBelowSelections(); // This will clear doctor, hospital, date, slot
-        _patientNameController.clear(); // Consider if you want to keep these prefilled
-        _patientContactController.clear(); // for subsequent bookings by same user
+        _clearDoctorAndBelowSelections();
         _formKey.currentState?.reset();
-        _filterDoctors(); // Re-filter doctors to show all
+        _filterDoctors();
       });
 
     } catch (e) {
-      print("Error booking appointment: $e");
-      if (mounted) _showError("Failed to book appointment: ${e.toString().replaceFirst("Exception: ", "")}");
-      // If booking failed, refresh slots in case one was taken
+      print("AppointmentBookingPage: _bookAppointment - Error booking appointment: $e");
+      if (mounted) _showError("Failed to book: ${e.toString().replaceFirst("Exception: ", "")}");
       if (mounted) _fetchAvailableTimeSlots();
     } finally {
       if (mounted) setState(() => _isBooking = false);
@@ -1639,6 +3529,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   }
 
   void _showFeedback(String message, {bool isError = false}) {
+    // ... (keep this method as it was)
     if (mounted && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1651,25 +3542,31 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   }
 
   void _showError(String message) {
+    // ... (keep this method as it was)
     _showFeedback(message, isError: true);
   }
 
   Future<void> _signOut() async {
+    // ... (keep this method as it was)
+    print("AppointmentBookingPage: _signOut called");
     try {
       await _auth.signOut();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => RoleLoginPage()),
+          MaterialPageRoute(builder: (context) => const RoleLoginPage()),
           (Route<dynamic> route) => false,
         );
       }
     } catch (e) {
       if (mounted) _showError('Error signing out: $e');
+      print("AppointmentBookingPage: _signOut error: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // ... (keep this method mostly as it was, check the hint text for slots)
+    print("AppointmentBookingPage: build method called. isLoadingTimeSlots: $_isLoadingTimeSlots, Selected Date: $_selectedDate, Available Slots Count: ${_availableTimeSlots.length}");
     return Scaffold(
       appBar: AppBar(
         title: const Text('Find & Book Appointment'),
@@ -1686,7 +3583,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
           key: _formKey,
           child: ListView(
             children: <Widget>[
-              // Search Field
+              // ... (Search, Specialty, Doctor, Hospital, Date fields remain the same as previous full code)
               TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
@@ -1698,7 +3595,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                       ? IconButton(
                           icon: const Icon(Icons.clear),
                           onPressed: () {
-                            _searchController.clear(); // This will trigger the listener
+                            _searchController.clear();
                           },
                         )
                       : null,
@@ -1706,7 +3603,6 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
               ),
               const SizedBox(height: 16),
 
-              // Specialty Filter Dropdown (only if search is empty)
               if (_searchTerm.isEmpty)
                 DropdownButtonFormField<Specialty?>(
                   decoration: InputDecoration(
@@ -1735,7 +3631,6 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                         child: CircularProgressIndicator())),
               const SizedBox(height: 16),
 
-              // Select Doctor Dropdown
               Text("Select Doctor", style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               _isLoadingDoctors
@@ -1745,7 +3640,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                           child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 16.0),
                           child: Text(
-                            _allDoctors.isEmpty && !_isLoadingSpecialties? "No doctors available at the moment."
+                             _allDoctors.isEmpty && !_isLoadingSpecialties && !_isLoadingDoctors? "No doctors found."
                             : "No doctors found matching your criteria.",
                           style: TextStyle(color: Colors.grey[600]),),
                         ))
@@ -1767,7 +3662,6 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                         ),
               const SizedBox(height: 16),
 
-              // Select Hospital Dropdown
               if (_selectedDoctor != null && _hospitalAffiliations.isNotEmpty)
                 DropdownButtonFormField<HospitalAffiliation>(
                   decoration: InputDecoration(
@@ -1791,7 +3685,6 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                 ),
               const SizedBox(height: 16),
 
-              // Select Date
               TextFormField(
                 decoration: InputDecoration(
                   labelText: 'Select Date',
@@ -1806,52 +3699,63 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                 controller: TextEditingController(
                   text: _selectedDate == null
                       ? ''
-                      : DateFormat.yMMMd().format(_selectedDate!), // e.g., Dec 15, 2023
+                      : DateFormat.yMMMd().format(_selectedDate!),
                 ),
                 onTap: _selectedDoctor == null || _selectedHospitalAffiliation == null
                     ? null : () => _selectDate(context),
                 validator: (value) => _selectedDate == null ? 'Please select a date' : null,
               ),
               const SizedBox(height: 16),
-
-              // Select Time Slot Dropdown
+              // --- Time Slot Dropdown ---
               if (_selectedDate != null && _selectedDoctor != null && _selectedHospitalAffiliation != null)
-                DropdownButtonFormField<AvailableSlot>(
-                  decoration: InputDecoration(
-                    labelText: 'Select Time Slot',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    enabled: !_isLoadingTimeSlots && _availableTimeSlots.isNotEmpty,
-                  ),
-                  value: _selectedSlot,
-                  hint: _isLoadingTimeSlots
-                      ? const Text('Loading slots...')
-                      : _availableTimeSlots.isEmpty
-                          ? Text('No slots available for ${DateFormat.yMMMd().format(_selectedDate!)}')
-                          : const Text('Choose a time slot'),
-                  isExpanded: true,
-                  items: _availableTimeSlots.map((AvailableSlot slot) {
-                    return DropdownMenuItem<AvailableSlot>(
-                        value: slot, child: Text(slot.displayTime));
-                  }).toList(),
-                  onChanged: _isLoadingTimeSlots || _availableTimeSlots.isEmpty
-                      ? null
-                      : (AvailableSlot? newValue) => setState(() => _selectedSlot = newValue),
-                  validator: (value) => value == null ? 'Please select a time slot' : null,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<AvailableSlot>(
+                      decoration: InputDecoration(
+                        labelText: 'Select Time Slot',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        enabled: !_isLoadingTimeSlots && _availableTimeSlots.isNotEmpty,
+                      ),
+                      value: _selectedSlot,
+                      hint: _isLoadingTimeSlots
+                          ? const Text('Loading slots...')
+                          : _availableTimeSlots.isEmpty
+                              ? Text('No slots available for ${DateFormat.yMMMd().format(_selectedDate!)}')
+                              : const Text('Choose a time slot'),
+                      isExpanded: true,
+                      items: _availableTimeSlots.map((AvailableSlot slot) {
+                        return DropdownMenuItem<AvailableSlot>(
+                            value: slot, child: Text(slot.displayTime));
+                      }).toList(),
+                      onChanged: _isLoadingTimeSlots || _availableTimeSlots.isEmpty
+                          ? null
+                          : (AvailableSlot? newValue) {
+                              print("AppointmentBookingPage: Time slot selected by user: ${newValue?.displayTime}");
+                              setState(() => _selectedSlot = newValue);
+                            },
+                      validator: (value) => value == null ? 'Please select a time slot' : null,
+                    ),
+                    if (_isLoadingTimeSlots)
+                       const Center(
+                          child: Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: CircularProgressIndicator())),
+                    if (!_isLoadingTimeSlots && _availableTimeSlots.isEmpty && _selectedDate != null) // Explicitly check selectedDate
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Center(child: Text("No slots found for the selected criteria.", style: TextStyle(color: Colors.grey[700]))),
+                      ),
+                  ],
                 ),
-              if (_isLoadingTimeSlots && _selectedDate != null && _selectedDoctor != null && _selectedHospitalAffiliation != null)
-                const Center(
-                    child: Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: CircularProgressIndicator())),
               const SizedBox(height: 20),
-
-              // Patient Details
-              TextFormField(
+              // ... (Patient Name, Contact, Book Button fields remain the same)
+               TextFormField(
                 controller: _patientNameController,
                 decoration: InputDecoration(
                     labelText: 'Your Full Name',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    prefixIcon: Icon(Icons.person_outline)),
+                    prefixIcon: const Icon(Icons.person_outline)),
                 validator: (value) => (value == null || value.isEmpty) ? 'Please enter your name' : null,
                 textInputAction: TextInputAction.next,
               ),
@@ -1861,7 +3765,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                 decoration: InputDecoration(
                     labelText: 'Your Contact Number',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    prefixIcon: Icon(Icons.phone_outlined)),
+                    prefixIcon: const Icon(Icons.phone_outlined)),
                 keyboardType: TextInputType.phone,
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Please enter contact number';
@@ -1872,7 +3776,6 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
               ),
               const SizedBox(height: 30),
 
-              // Book Appointment Button
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),

@@ -7,7 +7,7 @@ apply plugin: 'dev.flutter.flutter-gradle-plugin'
 android {
     namespace = "com.example.medi_sync_plus_app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -20,7 +20,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.medi_sync_plus_app"
-        minSdk = flutter.minSdkVersion
+        minSdkVersion 23 
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
