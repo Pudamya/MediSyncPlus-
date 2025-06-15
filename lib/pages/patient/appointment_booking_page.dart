@@ -3880,8 +3880,6 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> with Si
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  late TabController _tabController;
-
   void _clearDoctorAndBelowSelections() {
     if (!mounted) return;
     setState(() {
@@ -3893,6 +3891,8 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> with Si
       _availableTimeSlots = [];
     });
   }
+
+  late TabController _tabController;
 
   // --- State for Booking Form ---
   final TextEditingController _searchController = TextEditingController();
